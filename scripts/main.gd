@@ -32,6 +32,8 @@ func _ready() -> void:
 	hud.play_solo_requested.connect(start_solo_game)
 	hud.host_requested.connect(host_game)
 	hud.join_requested.connect(join_game)
+	hud.command_submitted.connect(_on_console_command)
+	hud.console_visibility_changed.connect(_on_console_visibility_changed)
 
 	wave_manager.wave_started.connect(_on_wave_started)
 	wave_manager.zombie_killed.connect(_on_zombie_killed)
@@ -40,6 +42,7 @@ func _ready() -> void:
 
 	hud.set_status(status_text)
 	hud.show_menu(true)
+	hud.add_console_line("Use ` or F1 to open the debug console.")
 
 func start_solo_game() -> void:
 	_prepare_for_new_session()
@@ -312,7 +315,7 @@ func show_lose_state() -> void:
 	get_tree().reload_current_scene()
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_zombie_hit(zombie_id: int, amount: int) -> void:
+func request_zombie_hit(zombie_id: int, zone_name: String, amount: int, impulse_direction: Vector3 = Vector3.ZERO, force: float = 0.0) -> void:
 	if not _is_server_authority():
 		return
 	var sender := multiplayer.get_remote_sender_id()
@@ -320,7 +323,7 @@ func request_zombie_hit(zombie_id: int, amount: int) -> void:
 		return
 	var zombie = zombie_nodes[zombie_id]
 	if is_instance_valid(zombie):
-		zombie.take_damage(amount)
+		zombie.take_hit(zone_name, amount, impulse_direction, force)
 
 func _physics_process(_delta: float) -> void:
 	if _is_server_authority() and multiplayer.has_multiplayer_peer() and not zombie_nodes.is_empty():
@@ -347,7 +350,13 @@ func sync_zombie_states(states: Array) -> void:
 				zombie.apply_remote_state(entry["pos"], entry["yaw"])
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_console"):
+		hud.toggle_console()
+		return
 	if event.is_action_pressed("ui_unpause") or event.is_action_pressed("ui_cancel"):
+		if hud.is_console_visible():
+			hud.set_console_visible(false)
+			return
 		if session_started:
 			_return_to_main_menu()
 		elif hud.is_menu_visible():
@@ -398,3 +407,34 @@ func _capture_local_menu_control() -> void:
 		var player = player_nodes[peer_id]
 		if is_instance_valid(player) and player.has_method("close_menu"):
 			player.close_menu()
+
+func _on_console_visibility_changed(visible_state: bool) -> void:
+	for peer_id in player_nodes.keys():
+		if peer_id != _local_peer_id():
+			continue
+		var player = player_nodes[peer_id]
+		if is_instance_valid(player) and player.has_method("set_input_blocked"):
+			player.set_input_blocked(visible_state)
+
+func _on_console_command(command: String) -> void:
+	var parts := command.split(" ", false)
+	if parts.is_empty():
+		return
+	match parts[0].to_lower():
+		"help":
+			hud.add_console_line("Commands: help, clear, restart, menu, killall, wave")
+		"clear":
+			hud.clear_console()
+		"restart":
+			_return_to_main_menu()
+		"menu":
+			_open_session_menu()
+		"killall":
+			for zombie in zombie_nodes.values():
+				if is_instance_valid(zombie):
+					zombie.take_hit("head", zombie.max_health, Vector3.UP, 0.0)
+			hud.add_console_line("All active zombies removed.")
+		"wave":
+			hud.add_console_line("Wave %d / kills %d / alive zombies %d" % [current_wave_number, total_kills, zombie_nodes.size()])
+		_:
+			hud.add_console_line("Unknown command: %s" % command)

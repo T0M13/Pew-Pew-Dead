@@ -85,6 +85,71 @@ theme_override_font_sizes/font_size = 64
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="PerfPanel" type="PanelContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -170.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 92.0
+
+[node name="Margin" type="MarginContainer" parent="PerfPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="PerfPanel/Margin"]
+layout_mode = 2
+
+[node name="Perf" type="Label" parent="PerfPanel/Margin/VBox"]
+layout_mode = 2
+text = "FPS 0\nMS 0.00"
+theme_override_font_sizes/font_size = 18
+
+[node name="Peer" type="Label" parent="PerfPanel/Margin/VBox"]
+layout_mode = 2
+text = "Choose Solo, Host, or Join to start."
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 14
+
+[node name="ConsolePanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -260.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="ConsolePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="ConsolePanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Log" type="RichTextLabel" parent="ConsolePanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+bbcode_enabled = false
+scroll_active = true
+selection_enabled = true
+
+[node name="Command" type="LineEdit" parent="ConsolePanel/Margin/VBox"]
+layout_mode = 2
+placeholder_text = "Enter command... (help, clear, restart, killall)"
+
 [node name="MenuPanel" type="PanelContainer" parent="."]
 anchors_preset = 8
 anchor_left = 0.5
@@ -151,6 +216,7 @@ text = "Choose Solo, Host, or Join to start."
 autowrap_mode = 3
 horizontal_alignment = 1
 
+[connection signal="text_submitted" from="ConsolePanel/Margin/VBox/Command" to="." method="_on_command_text_submitted"]
 [connection signal="pressed" from="MenuPanel/Margin/VBox/Buttons/SoloButton" to="." method="_on_solo_pressed"]
 [connection signal="pressed" from="MenuPanel/Margin/VBox/Buttons/HostButton" to="." method="_on_host_pressed"]
 [connection signal="pressed" from="MenuPanel/Margin/VBox/Buttons/JoinButton" to="." method="_on_join_pressed"]
