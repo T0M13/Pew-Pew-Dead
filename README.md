@@ -31,6 +31,9 @@ Survive 3 waves (5 / 10 / 15 zombies). Zombies die in 2 hits and damage players 
 
 See [docs/multiplayer.md](docs/multiplayer.md) for the architecture, flow, and current limitations.
 
+## Roadmap
+- [docs/game-roadmap.md](docs/game-roadmap.md) tracks the current game direction: roguelike systems, enemy and weapon expansion, movement upgrades, economy, characters, and long-term progression ideas.
+
 ## Stack
 - Godot 4.6 (GDScript)
 - Blender (low-poly assets, GLB export)

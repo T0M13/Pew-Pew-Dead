@@ -37,6 +37,9 @@ gh pr create --title "..." --body "..."
 gh pr merge <num> --squash --delete-branch
 ```
 
+Important repo habit:
+- After pushing any working branch, **always create the PR immediately** unless the user explicitly says not to.
+
 Repo settings already enforce:
 - PR required (0 reviews needed — solo project; bump to 1 once a real collaborator exists)
 - No force pushes, no deletions, linear history, conversation resolution required
