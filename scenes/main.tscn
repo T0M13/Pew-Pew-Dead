@@ -1,11 +1,10 @@
 [gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
-[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="3_hud"]
-[ext_resource type="Script" path="res://scripts/wave_manager.gd" id="4_wave"]
-[ext_resource type="PackedScene" path="res://scenes/zombie.tscn" id="5_zombie"]
-[ext_resource type="PackedScene" path="res://assets/tree.glb" id="6_tree"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/wave_manager.gd" id="3_wave"]
+[ext_resource type="PackedScene" path="res://scenes/zombie.tscn" id="4_zombie"]
+[ext_resource type="PackedScene" path="res://assets/tree.glb" id="5_tree"]
 
 [sub_resource type="StandardMaterial3D" id="m_floor"]
 albedo_color = Color(0.78, 0.92, 0.78, 1)
@@ -171,23 +170,23 @@ shape = SubResource("shape_obs")
 
 [node name="Decorations" type="Node3D" parent="."]
 
-[node name="Tree1" parent="Decorations" instance=ExtResource("6_tree")]
+[node name="Tree1" parent="Decorations" instance=ExtResource("5_tree")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, -15)
 
-[node name="Tree2" parent="Decorations" instance=ExtResource("6_tree")]
+[node name="Tree2" parent="Decorations" instance=ExtResource("5_tree")]
 transform = Transform3D(0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 14, 0, -16)
 
-[node name="Tree3" parent="Decorations" instance=ExtResource("6_tree")]
+[node name="Tree3" parent="Decorations" instance=ExtResource("5_tree")]
 transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, -16, 0, 13)
 
-[node name="Tree4" parent="Decorations" instance=ExtResource("6_tree")]
+[node name="Tree4" parent="Decorations" instance=ExtResource("5_tree")]
 transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 15, 0, 14)
 
-[node name="Tree5" parent="Decorations" instance=ExtResource("6_tree")]
+[node name="Tree5" parent="Decorations" instance=ExtResource("5_tree")]
 transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, -2, 0, -17)
 
-[node name="Tree6" parent="Decorations" instance=ExtResource("6_tree")]
-transform = Transform3D(1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0, -17, 0, 2)
+[node name="Tree6" parent="Decorations" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, 2)
 
 [node name="SpawnPoints" type="Node3D" parent="."]
 
@@ -203,15 +202,31 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.5, -17)
 [node name="SP4" type="Marker3D" parent="SpawnPoints"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0.5, -17)
 
-[node name="Player" parent="." instance=ExtResource("2_player")]
+[node name="PlayerSpawnPoints" type="Node3D" parent="."]
+
+[node name="P1" type="Marker3D" parent="PlayerSpawnPoints"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 
-[node name="HUD" parent="." instance=ExtResource("3_hud")]
+[node name="P2" type="Marker3D" parent="PlayerSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.05, 3)
+
+[node name="P3" type="Marker3D" parent="PlayerSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.05, 3)
+
+[node name="P4" type="Marker3D" parent="PlayerSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -3)
+
+[node name="Players" type="Node3D" parent="."]
+
+[node name="Zombies" type="Node3D" parent="."]
+
+[node name="HUD" parent="." instance=ExtResource("2_hud")]
 
 [node name="WaveManager" type="Node" parent="."]
-script = ExtResource("4_wave")
-zombie_scene = ExtResource("5_zombie")
+script = ExtResource("3_wave")
+zombie_scene = ExtResource("4_zombie")
 spawn_points = [NodePath("../SpawnPoints/SP1"), NodePath("../SpawnPoints/SP2"), NodePath("../SpawnPoints/SP3"), NodePath("../SpawnPoints/SP4")]
+spawn_parent_path = NodePath("../Zombies")
 waves = Array[int]([5, 10, 15])
 spawn_interval = 0.7
 wave_break = 3.0
