@@ -1,0 +1,196 @@
+[gd_scene load_steps=22 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="3_hud"]
+[ext_resource type="Script" path="res://scripts/wave_manager.gd" id="4_wave"]
+[ext_resource type="PackedScene" path="res://scenes/zombie.tscn" id="5_zombie"]
+
+[sub_resource type="StandardMaterial3D" id="m_floor"]
+albedo_color = Color(0.78, 0.92, 0.78, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="m_wall"]
+albedo_color = Color(0.86, 0.78, 0.95, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="m_obs"]
+albedo_color = Color(0.97, 0.82, 0.71, 1)
+roughness = 0.8
+
+[sub_resource type="PlaneMesh" id="mesh_floor"]
+size = Vector2(40, 40)
+
+[sub_resource type="BoxShape3D" id="shape_floor"]
+size = Vector3(40, 0.5, 40)
+
+[sub_resource type="BoxMesh" id="mesh_wall_x"]
+size = Vector3(40, 3, 0.5)
+
+[sub_resource type="BoxShape3D" id="shape_wall_x"]
+size = Vector3(40, 3, 0.5)
+
+[sub_resource type="BoxMesh" id="mesh_wall_z"]
+size = Vector3(0.5, 3, 40)
+
+[sub_resource type="BoxShape3D" id="shape_wall_z"]
+size = Vector3(0.5, 3, 40)
+
+[sub_resource type="BoxMesh" id="mesh_obs"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="BoxShape3D" id="shape_obs"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.6, 0.85, 0.95, 1)
+sky_horizon_color = Color(0.97, 0.86, 0.92, 1)
+ground_bottom_color = Color(0.85, 0.95, 0.85, 1)
+ground_horizon_color = Color(0.95, 0.88, 0.92, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+ambient_light_color = Color(0.95, 0.92, 1, 1)
+ambient_light_energy = 0.45
+tonemap_mode = 2
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 12, 0)
+light_color = Color(1, 0.97, 0.92, 1)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="World" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="FloorMesh" type="MeshInstance3D" parent="World"]
+mesh = SubResource("mesh_floor")
+material_override = SubResource("m_floor")
+
+[node name="FloorShape" type="CollisionShape3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+shape = SubResource("shape_floor")
+
+[node name="WallNorthMesh" type="MeshInstance3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -20)
+mesh = SubResource("mesh_wall_x")
+material_override = SubResource("m_wall")
+
+[node name="WallNorthShape" type="CollisionShape3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -20)
+shape = SubResource("shape_wall_x")
+
+[node name="WallSouthMesh" type="MeshInstance3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 20)
+mesh = SubResource("mesh_wall_x")
+material_override = SubResource("m_wall")
+
+[node name="WallSouthShape" type="CollisionShape3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 20)
+shape = SubResource("shape_wall_x")
+
+[node name="WallEastMesh" type="MeshInstance3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.5, 0)
+mesh = SubResource("mesh_wall_z")
+material_override = SubResource("m_wall")
+
+[node name="WallEastShape" type="CollisionShape3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.5, 0)
+shape = SubResource("shape_wall_z")
+
+[node name="WallWestMesh" type="MeshInstance3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 1.5, 0)
+mesh = SubResource("mesh_wall_z")
+material_override = SubResource("m_wall")
+
+[node name="WallWestShape" type="CollisionShape3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 1.5, 0)
+shape = SubResource("shape_wall_z")
+
+[node name="Obstacles" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Obs1Mesh" type="MeshInstance3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 5)
+mesh = SubResource("mesh_obs")
+material_override = SubResource("m_obs")
+
+[node name="Obs1Shape" type="CollisionShape3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 5)
+shape = SubResource("shape_obs")
+
+[node name="Obs2Mesh" type="MeshInstance3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 1, -4)
+mesh = SubResource("mesh_obs")
+material_override = SubResource("m_obs")
+
+[node name="Obs2Shape" type="CollisionShape3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 1, -4)
+shape = SubResource("shape_obs")
+
+[node name="Obs3Mesh" type="MeshInstance3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1, -8)
+mesh = SubResource("mesh_obs")
+material_override = SubResource("m_obs")
+
+[node name="Obs3Shape" type="CollisionShape3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1, -8)
+shape = SubResource("shape_obs")
+
+[node name="Obs4Mesh" type="MeshInstance3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1, 7)
+mesh = SubResource("mesh_obs")
+material_override = SubResource("m_obs")
+
+[node name="Obs4Shape" type="CollisionShape3D" parent="Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1, 7)
+shape = SubResource("shape_obs")
+
+[node name="Obs5Mesh" type="MeshInstance3D" parent="Obstacles"]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 1.5, 12)
+mesh = SubResource("mesh_obs")
+material_override = SubResource("m_obs")
+
+[node name="Obs5Shape" type="CollisionShape3D" parent="Obstacles"]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 1.5, 12)
+shape = SubResource("shape_obs")
+
+[node name="SpawnPoints" type="Node3D" parent="."]
+
+[node name="SP1" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.5, 17)
+
+[node name="SP2" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0.5, 17)
+
+[node name="SP3" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.5, -17)
+
+[node name="SP4" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0.5, -17)
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+[node name="WaveManager" type="Node" parent="."]
+script = ExtResource("4_wave")
+zombie_scene = ExtResource("5_zombie")
+spawn_points = [NodePath("../SpawnPoints/SP1"), NodePath("../SpawnPoints/SP2"), NodePath("../SpawnPoints/SP3"), NodePath("../SpawnPoints/SP4")]
+waves = Array[int]([5, 10, 15])
+spawn_interval = 0.7
+wave_break = 3.0

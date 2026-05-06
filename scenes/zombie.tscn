@@ -1,0 +1,113 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scripts/zombie.gd" id="1_z"]
+
+[sub_resource type="CapsuleShape3D" id="zc"]
+radius = 0.4
+height = 1.5
+
+[sub_resource type="StandardMaterial3D" id="mat_skin"]
+albedo_color = Color(0.62, 0.85, 0.55, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="mat_dark"]
+albedo_color = Color(0.42, 0.65, 0.42, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="mat_eye_white"]
+albedo_color = Color(1, 1, 1, 1)
+roughness = 0.3
+
+[sub_resource type="StandardMaterial3D" id="mat_pupil"]
+albedo_color = Color(0.1, 0.1, 0.1, 1)
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="mesh_body"]
+size = Vector3(0.7, 0.9, 0.5)
+
+[sub_resource type="BoxMesh" id="mesh_head"]
+size = Vector3(0.55, 0.55, 0.55)
+
+[sub_resource type="BoxMesh" id="mesh_arm"]
+size = Vector3(0.18, 0.7, 0.18)
+
+[sub_resource type="BoxMesh" id="mesh_leg"]
+size = Vector3(0.22, 0.7, 0.22)
+
+[sub_resource type="BoxMesh" id="mesh_eye"]
+size = Vector3(0.13, 0.13, 0.04)
+
+[sub_resource type="BoxMesh" id="mesh_pupil"]
+size = Vector3(0.06, 0.06, 0.04)
+
+[sub_resource type="SphereShape3D" id="atk"]
+radius = 1.0
+
+[node name="Zombie" type="CharacterBody3D" groups=["zombies"]]
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1_z")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("zc")
+
+[node name="MeshRoot" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("mesh_body")
+material_override = SubResource("mat_dark")
+
+[node name="Head" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+mesh = SubResource("mesh_head")
+material_override = SubResource("mat_skin")
+
+[node name="EyeL" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 1.65, -0.27)
+mesh = SubResource("mesh_eye")
+material_override = SubResource("mat_eye_white")
+
+[node name="EyeR" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 1.65, -0.27)
+mesh = SubResource("mesh_eye")
+material_override = SubResource("mat_eye_white")
+
+[node name="PupilL" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 1.65, -0.3)
+mesh = SubResource("mesh_pupil")
+material_override = SubResource("mat_pupil")
+
+[node name="PupilR" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 1.65, -0.3)
+mesh = SubResource("mesh_pupil")
+material_override = SubResource("mat_pupil")
+
+[node name="ArmL" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 1.0, -0.2)
+mesh = SubResource("mesh_arm")
+material_override = SubResource("mat_skin")
+
+[node name="ArmR" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 1.0, -0.2)
+mesh = SubResource("mesh_arm")
+material_override = SubResource("mat_skin")
+
+[node name="LegL" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.18, 0.35, 0)
+mesh = SubResource("mesh_leg")
+material_override = SubResource("mat_dark")
+
+[node name="LegR" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18, 0.35, 0)
+mesh = SubResource("mesh_leg")
+material_override = SubResource("mat_dark")
+
+[node name="AttackArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="AttackShape" type="CollisionShape3D" parent="AttackArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+shape = SubResource("atk")

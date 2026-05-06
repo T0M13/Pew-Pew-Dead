@@ -1,0 +1,80 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/player.gd" id="1_p"]
+
+[sub_resource type="CapsuleShape3D" id="cap1"]
+radius = 0.35
+height = 1.7
+
+[sub_resource type="StandardMaterial3D" id="mat_gun"]
+albedo_color = Color(0.95, 0.6, 0.7, 1)
+roughness = 0.6
+
+[sub_resource type="StandardMaterial3D" id="mat_gun_dark"]
+albedo_color = Color(0.4, 0.35, 0.42, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="mat_flash"]
+albedo_color = Color(1, 0.95, 0.4, 1)
+emission_enabled = true
+emission = Color(1, 0.9, 0.3, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="mesh_gun_body"]
+size = Vector3(0.14, 0.14, 0.4)
+
+[sub_resource type="BoxMesh" id="mesh_gun_grip"]
+size = Vector3(0.09, 0.2, 0.09)
+
+[sub_resource type="BoxMesh" id="mesh_gun_barrel"]
+size = Vector3(0.07, 0.07, 0.3)
+
+[sub_resource type="SphereMesh" id="mesh_flash"]
+radius = 0.09
+height = 0.18
+radial_segments = 8
+rings = 4
+
+[node name="Player" type="CharacterBody3D" groups=["player"]]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_p")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+shape = SubResource("cap1")
+
+[node name="Head" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Head"]
+current = true
+fov = 78.0
+
+[node name="Gun" type="Node3D" parent="Head/Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.32, -0.28, -0.55)
+
+[node name="Body" type="MeshInstance3D" parent="Head/Camera3D/Gun"]
+mesh = SubResource("mesh_gun_body")
+material_override = SubResource("mat_gun")
+
+[node name="Grip" type="MeshInstance3D" parent="Head/Camera3D/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.13, 0.08)
+mesh = SubResource("mesh_gun_grip")
+material_override = SubResource("mat_gun_dark")
+
+[node name="Barrel" type="MeshInstance3D" parent="Head/Camera3D/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.32)
+mesh = SubResource("mesh_gun_barrel")
+material_override = SubResource("mat_gun_dark")
+
+[node name="MuzzleFlash" type="MeshInstance3D" parent="Head/Camera3D/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.5)
+mesh = SubResource("mesh_flash")
+material_override = SubResource("mat_flash")
+visible = false
+
+[node name="ShootRay" type="RayCast3D" parent="Head/Camera3D"]
+target_position = Vector3(0, 0, -50)
+collide_with_areas = false
+collision_mask = 5
