@@ -11,6 +11,8 @@ func _initialize() -> void:
 	var inst = ps.instantiate()
 	root.add_child(inst)
 	current_scene = inst
+	if inst.has_method("start_solo_game"):
+		inst.call_deferred("start_solo_game")
 	print("Main scene started")
 
 func _process(_delta: float) -> bool:

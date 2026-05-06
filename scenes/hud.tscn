@@ -31,7 +31,7 @@ theme_override_font_sizes/font_size = 28
 
 [node name="Wave" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "Wave 1"
+text = "Wave -"
 theme_override_colors/font_color = Color(0.18, 0.18, 0.22, 1)
 theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
 theme_override_constants/outline_size = 5
@@ -84,3 +84,73 @@ theme_override_constants/outline_size = 10
 theme_override_font_sizes/font_size = 64
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="MenuPanel" type="PanelContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -160.0
+offset_right = 220.0
+offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="MenuPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="MenuPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="MenuPanel/Margin/VBox"]
+layout_mode = 2
+text = "Pew Pew Dead Online"
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="MenuPanel/Margin/VBox"]
+layout_mode = 2
+text = "Solo works instantly. Online uses host/client over UDP 7000."
+autowrap_mode = 3
+horizontal_alignment = 1
+
+[node name="JoinIP" type="LineEdit" parent="MenuPanel/Margin/VBox"]
+layout_mode = 2
+placeholder_text = "Host IP (example: 127.0.0.1 or 192.168.1.20)"
+text = "127.0.0.1"
+
+[node name="Buttons" type="HBoxContainer" parent="MenuPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SoloButton" type="Button" parent="MenuPanel/Margin/VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Play Solo"
+
+[node name="HostButton" type="Button" parent="MenuPanel/Margin/VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Host"
+
+[node name="JoinButton" type="Button" parent="MenuPanel/Margin/VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Join"
+
+[node name="Status" type="Label" parent="MenuPanel/Margin/VBox"]
+layout_mode = 2
+text = "Choose Solo, Host, or Join to start."
+autowrap_mode = 3
+horizontal_alignment = 1
+
+[connection signal="pressed" from="MenuPanel/Margin/VBox/Buttons/SoloButton" to="." method="_on_solo_pressed"]
+[connection signal="pressed" from="MenuPanel/Margin/VBox/Buttons/HostButton" to="." method="_on_host_pressed"]
+[connection signal="pressed" from="MenuPanel/Margin/VBox/Buttons/JoinButton" to="." method="_on_join_pressed"]

@@ -8,11 +8,14 @@ extends CharacterBody3D
 @onready var mesh_root: Node3D = $MeshRoot
 @onready var attack_area: Area3D = $AttackArea
 
+var network_id: int = -1
 var health: int
 var target: Node3D
 var attack_timer: float = 0.0
 var dying: bool = false
 var bob_phase: float = 0.0
+var remote_position: Vector3
+var remote_yaw: float = 0.0
 
 signal died(zombie)
 
@@ -20,15 +23,18 @@ func _ready() -> void:
 	add_to_group("zombies")
 	health = max_health
 	bob_phase = randf() * TAU
-	target = get_tree().get_first_node_in_group("player")
+	remote_position = global_position
+	_select_target()
 
 func _physics_process(delta: float) -> void:
 	if dying:
 		return
-	if not is_instance_valid(target):
-		target = get_tree().get_first_node_in_group("player")
-		if target == null:
-			return
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		_apply_remote_state(delta)
+		return
+	_select_target()
+	if target == null:
+		return
 	var to_target := target.global_position - global_position
 	to_target.y = 0.0
 	if to_target.length() > 0.05:
@@ -41,16 +47,35 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= 20.0 * delta
 	move_and_slide()
-	bob_phase += delta * 8.0
-	mesh_root.position.y = abs(sin(bob_phase)) * 0.08
+	_animate_bob(delta)
 	attack_timer -= delta
 	if attack_timer <= 0.0:
 		for body in attack_area.get_overlapping_bodies():
-			if body.is_in_group("player") and body.has_method("take_damage"):
+			if body.is_in_group("player") and body.has_method("take_damage") and not body.dead:
 				body.take_damage(damage)
 				attack_timer = attack_cooldown
 				_lunge()
 				break
+
+func _apply_remote_state(delta: float) -> void:
+	global_position = global_position.lerp(remote_position, min(14.0 * delta, 1.0))
+	rotation.y = lerp_angle(rotation.y, remote_yaw, min(14.0 * delta, 1.0))
+	_animate_bob(delta)
+
+func _animate_bob(delta: float) -> void:
+	bob_phase += delta * 8.0
+	mesh_root.position.y = abs(sin(bob_phase)) * 0.08
+
+func _select_target() -> void:
+	var best_distance := INF
+	target = null
+	for player in get_tree().get_nodes_in_group("player"):
+		if player.dead:
+			continue
+		var dist: float = player.global_position.distance_to(global_position)
+		if dist < best_distance:
+			best_distance = dist
+			target = player
 
 func _lunge() -> void:
 	var t := create_tween()
@@ -67,6 +92,21 @@ func take_damage(amount: int) -> void:
 		var t := create_tween()
 		t.tween_property(mesh_root, "scale", Vector3(1.2, 0.8, 1.2), 0.05)
 		t.tween_property(mesh_root, "scale", Vector3.ONE, 0.12)
+
+func apply_remote_state(pos: Vector3, yaw: float) -> void:
+	remote_position = pos
+	remote_yaw = yaw
+
+func play_remote_death() -> void:
+	if dying:
+		return
+	dying = true
+	var t := create_tween()
+	t.set_parallel(true)
+	t.tween_property(mesh_root, "scale", Vector3(1.5, 0.1, 1.5), 0.45)
+	t.tween_property(mesh_root, "rotation", mesh_root.rotation + Vector3(0, PI, 0), 0.45)
+	await t.finished
+	queue_free()
 
 func _die() -> void:
 	dying = true
