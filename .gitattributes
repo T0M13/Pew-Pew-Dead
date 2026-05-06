@@ -1,0 +1,30 @@
+# Force consistent line endings on text files
+* text=auto eol=lf
+
+# Godot text formats
+*.gd        text eol=lf
+*.tscn      text eol=lf
+*.tres      text eol=lf
+*.import    text eol=lf
+*.godot     text eol=lf
+*.uid       text eol=lf
+*.cfg       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.svg       text eol=lf
+
+# Binary assets — never touch line endings or these files corrupt
+*.glb       binary
+*.gltf      binary
+*.bin       binary
+*.blend     binary
+*.blend1    binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.ogg       binary
+*.wav       binary
+*.mp3       binary
+*.fbx       binary
+*.obj       binary
