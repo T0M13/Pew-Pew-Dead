@@ -1,6 +1,7 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/zombie.gd" id="1_z"]
+[ext_resource type="Script" path="res://scripts/zombie_hitbox.gd" id="2_hit"]
 
 [sub_resource type="CapsuleShape3D" id="zc"]
 radius = 0.4
@@ -40,8 +41,23 @@ size = Vector3(0.13, 0.13, 0.04)
 [sub_resource type="BoxMesh" id="mesh_pupil"]
 size = Vector3(0.06, 0.06, 0.04)
 
+[sub_resource type="BoxMesh" id="mesh_jaw"]
+size = Vector3(0.34, 0.18, 0.16)
+
+[sub_resource type="BoxMesh" id="mesh_shoulder"]
+size = Vector3(0.24, 0.24, 0.24)
+
 [sub_resource type="SphereShape3D" id="atk"]
 radius = 1.0
+
+[sub_resource type="BoxShape3D" id="shape_head_hit"]
+size = Vector3(0.62, 0.62, 0.62)
+
+[sub_resource type="BoxShape3D" id="shape_arm_hit"]
+size = Vector3(0.24, 0.78, 0.24)
+
+[sub_resource type="BoxShape3D" id="shape_leg_hit"]
+size = Vector3(0.28, 0.78, 0.28)
 
 [node name="Zombie" type="CharacterBody3D" groups=["zombies"]]
 collision_layer = 4
@@ -63,6 +79,11 @@ material_override = SubResource("mat_dark")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 mesh = SubResource("mesh_head")
 material_override = SubResource("mat_skin")
+
+[node name="Jaw" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 1.35, -0.18)
+mesh = SubResource("mesh_jaw")
+material_override = SubResource("mat_dark")
 
 [node name="EyeL" type="MeshInstance3D" parent="MeshRoot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 1.65, -0.27)
@@ -89,10 +110,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 1.0, -0.2)
 mesh = SubResource("mesh_arm")
 material_override = SubResource("mat_skin")
 
+[node name="ShoulderL" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(0.939693, 0, 0.34202, 0, 1, 0, -0.34202, 0, 0.939693, -0.46, 1.22, -0.02)
+mesh = SubResource("mesh_shoulder")
+material_override = SubResource("mat_dark")
+
 [node name="ArmR" type="MeshInstance3D" parent="MeshRoot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 1.0, -0.2)
 mesh = SubResource("mesh_arm")
 material_override = SubResource("mat_skin")
+
+[node name="ShoulderR" type="MeshInstance3D" parent="MeshRoot"]
+transform = Transform3D(0.939693, 0, -0.34202, 0, 1, 0, 0.34202, 0, 0.939693, 0.46, 1.22, -0.02)
+mesh = SubResource("mesh_shoulder")
+material_override = SubResource("mat_dark")
 
 [node name="LegL" type="MeshInstance3D" parent="MeshRoot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.18, 0.35, 0)
@@ -107,6 +138,63 @@ material_override = SubResource("mat_dark")
 [node name="AttackArea" type="Area3D" parent="."]
 collision_layer = 0
 collision_mask = 2
+
+[node name="HeadHitbox" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("2_hit")
+zone_name = "head"
+
+[node name="HeadHitShape" type="CollisionShape3D" parent="HeadHitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, 0)
+shape = SubResource("shape_head_hit")
+
+[node name="ArmLHitbox" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("2_hit")
+zone_name = "arm_l"
+
+[node name="ArmLHitShape" type="CollisionShape3D" parent="ArmLHitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 1.0, -0.2)
+shape = SubResource("shape_arm_hit")
+
+[node name="ArmRHitbox" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("2_hit")
+zone_name = "arm_r"
+
+[node name="ArmRHitShape" type="CollisionShape3D" parent="ArmRHitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 1.0, -0.2)
+shape = SubResource("shape_arm_hit")
+
+[node name="LegLHitbox" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("2_hit")
+zone_name = "leg_l"
+
+[node name="LegLHitShape" type="CollisionShape3D" parent="LegLHitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.18, 0.35, 0)
+shape = SubResource("shape_leg_hit")
+
+[node name="LegRHitbox" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("2_hit")
+zone_name = "leg_r"
+
+[node name="LegRHitShape" type="CollisionShape3D" parent="LegRHitbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18, 0.35, 0)
+shape = SubResource("shape_leg_hit")
+
+[node name="HitLight" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+light_color = Color(1, 0.45, 0.3, 1)
+light_energy = 0.0
+omni_range = 2.8
+shadow_enabled = false
 
 [node name="AttackShape" type="CollisionShape3D" parent="AttackArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
