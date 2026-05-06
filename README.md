@@ -9,17 +9,38 @@ A cute low-poly FPS zombie blaster built in **Godot 4.6**, with assets modeled i
    godot --path .
    ```
 3. In-game, choose `Play Solo`, `Host`, or `Join`.
+4. Survive the zombie waves, use movement to stay mobile, and aim for headshots.
+
+## How To Play
+- `Play Solo` starts an instant local run.
+- `Host` starts a listen server on `UDP 7000`.
+- `Join` connects to a host by IP.
+- `Esc` returns you to the main menu scene during a run.
+- The current build has wave survival, multiplayer host/join, a debug console, sprinting, sliding, melee, headshots, and limb severing/crawl behavior on zombies.
 
 ## Controls
 - **WASD** - move
 - **Mouse** - look
 - **Left click** - shoot
+- **Shift** - sprint
+- **Ctrl** or **C** - slide
+- **F** - melee / shove
 - **Space** - jump
-- **Esc** - release mouse
-- **Tab / menu key** - reopen the session menu
+- **Esc** - return to menu
+- **`** or **F1** - toggle debug console
+
+## Debug Console
+- Shows `FPS` and `MS` in the HUD.
+- Current commands:
+  - `help`
+  - `clear`
+  - `restart`
+  - `menu`
+  - `killall`
+  - `wave`
 
 ## Gameplay
-Survive 3 waves (5 / 10 / 15 zombies). Zombies die in 2 hits and damage players on contact.
+Survive 3 waves (5 / 10 / 15 zombies). Zombies can lose limbs, crawl after leg loss, and are often one-shot with clean headshots.
 
 ## Multiplayer
 - Online mode uses Godot's high-level multiplayer API with `ENetMultiplayerPeer`.
