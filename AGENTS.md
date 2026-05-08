@@ -30,6 +30,7 @@ Logs include timestamp + level automatically — just pass the message.
 - Defaults to **debug mode**: captures engine + game logs, rotates folders.
 - Pass `--no-debug` (anywhere in args) to skip log capture and run Godot directly.
 - All other args pass through to Godot.
+- After making a code or scene change for the user, start the game with `./run.sh` so the user can immediately try it.
 
 ```bash
 ./run.sh                                    # default — debug logs on

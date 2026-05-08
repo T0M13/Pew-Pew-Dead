@@ -75,7 +75,10 @@ func _on_zombie_died(zombie) -> void:
 	zombie_killed.emit(alive_count)
 	var root := get_parent()
 	if root.has_method("despawn_zombie") and zombie.network_id > 0:
-		root.despawn_zombie.rpc(zombie.network_id)
+		if multiplayer.has_multiplayer_peer():
+			root.despawn_zombie.rpc(zombie.network_id)
+		else:
+			root.despawn_zombie(zombie.network_id)
 	if alive_count <= 0 and not spawning:
 		_advance_wave()
 

@@ -21,6 +21,7 @@ extends CharacterBody3D
 @export var melee_force: float = 8.0
 @export var bunnyhop_speed_boost: float = 1.08
 @export var projectile_scene: PackedScene
+@export var muzzle_smoke_scene: PackedScene
 @export var max_charge_time: float = 0.9
 
 @onready var camera: Camera3D = $Head/Camera3D
@@ -31,12 +32,7 @@ extends CharacterBody3D
 @onready var avatar_root: Node3D = $AvatarRoot
 @onready var head_mesh: MeshInstance3D = $Head/HeadMesh
 
-const PROJECTILE_ELEMENTS := [
-	{"name": &"solar", "color": Color(1.0, 0.78, 0.12, 1.0)},
-	{"name": &"frost", "color": Color(0.2, 0.82, 1.0, 1.0)},
-	{"name": &"venom", "color": Color(0.35, 1.0, 0.26, 1.0)},
-	{"name": &"knockback", "color": Color(1.0, 0.32, 0.78, 1.0)},
-]
+const PROJECTILE_COLOR := Color(1.0, 0.82, 0.18, 1.0)
 
 var health: int
 var mouse_captured: bool = false
@@ -62,7 +58,6 @@ var camera_kick_tween: Tween
 var was_on_floor: bool = false
 var charging_shot: bool = false
 var charge_time: float = 0.0
-var projectile_index: int = 0
 
 signal health_changed(value: int, max_value: int)
 signal died
@@ -220,18 +215,15 @@ func _update_charge(delta: float) -> void:
 func _shoot(charge_level: float) -> void:
 	charging_shot = false
 	charge_level = clamp(charge_level, 0.0, 1.0)
-	var element = PROJECTILE_ELEMENTS[projectile_index % PROJECTILE_ELEMENTS.size()]
-	projectile_index += 1
-	var shot_color: Color = element.color
-	var shot_effect: StringName = element.name
-	_play_shot_feedback(shot_color, charge_level)
+	_play_shot_feedback(charge_level)
 	if projectile_scene == null:
 		push_warning("Player cannot shoot because no projectile scene is assigned.")
 		return
 	var projectile := projectile_scene.instantiate()
 	get_tree().current_scene.add_child(projectile)
-	projectile.configure(shot_color, shot_effect, charge_level)
+	projectile.configure(charge_level)
 	projectile.launch(muzzle_flash.global_position, -camera.global_transform.basis.z.normalized())
+	_spawn_muzzle_smoke(charge_level)
 
 func _try_melee_attack() -> void:
 	if melee_timer > 0.0:
@@ -297,7 +289,7 @@ func _process_slide_collisions() -> void:
 				direction = -head.global_transform.basis.z
 			_apply_zombie_hit(collider, "torso", 1, direction, melee_force + 2.5)
 
-func _play_shot_feedback(shot_color: Color, charge_level: float) -> void:
+func _play_shot_feedback(charge_level: float) -> void:
 	if recoil_tween:
 		recoil_tween.kill()
 	if muzzle_tween:
@@ -305,10 +297,10 @@ func _play_shot_feedback(shot_color: Color, charge_level: float) -> void:
 	if camera_kick_tween:
 		camera_kick_tween.kill()
 	gun.position = gun_rest_position
-	_set_muzzle_color(shot_color)
+	_set_muzzle_color(PROJECTILE_COLOR)
 	muzzle_flash.visible = true
 	muzzle_flash.scale = Vector3.ONE * (1.0 + charge_level * 1.2)
-	muzzle_light.light_color = shot_color
+	muzzle_light.light_color = PROJECTILE_COLOR
 	muzzle_light.light_energy = 2.6 + charge_level * 2.2
 	muzzle_tween = create_tween()
 	muzzle_tween.tween_interval(0.05)
@@ -325,6 +317,14 @@ func _play_shot_feedback(shot_color: Color, charge_level: float) -> void:
 	camera_kick_tween = create_tween()
 	camera_kick_tween.tween_property(camera, "rotation:x", orig_x + 0.018 + charge_level * 0.018, 0.025)
 	camera_kick_tween.tween_property(camera, "rotation:x", orig_x, 0.11)
+
+func _spawn_muzzle_smoke(charge_level: float) -> void:
+	if muzzle_smoke_scene == null:
+		return
+	var smoke := muzzle_smoke_scene.instantiate()
+	get_tree().current_scene.add_child(smoke)
+	smoke.global_position = muzzle_flash.global_position
+	smoke.play(-camera.global_transform.basis.z.normalized(), charge_level)
 
 func _set_muzzle_color(shot_color: Color) -> void:
 	var material := muzzle_flash.material_override as StandardMaterial3D

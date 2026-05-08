@@ -3,6 +3,7 @@ extends SceneTree
 func _initialize() -> void:
 	var paths := [
 		"res://scenes/player.tscn",
+		"res://scenes/muzzle_smoke.tscn",
 		"res://scenes/projectile.tscn",
 		"res://scenes/projectile_impact.tscn",
 		"res://scenes/zombie.tscn",
