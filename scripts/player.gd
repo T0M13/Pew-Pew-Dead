@@ -20,15 +20,23 @@ extends CharacterBody3D
 @export var melee_cooldown: float = 0.45
 @export var melee_force: float = 8.0
 @export var bunnyhop_speed_boost: float = 1.08
+@export var projectile_scene: PackedScene
+@export var max_charge_time: float = 0.9
 
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var head: Node3D = $Head
-@onready var shoot_ray: RayCast3D = $Head/Camera3D/ShootRay
 @onready var muzzle_flash: MeshInstance3D = $Head/Camera3D/Gun/MuzzleFlash
 @onready var muzzle_light: OmniLight3D = $Head/Camera3D/Gun/MuzzleLight
 @onready var gun: Node3D = $Head/Camera3D/Gun
 @onready var avatar_root: Node3D = $AvatarRoot
 @onready var head_mesh: MeshInstance3D = $Head/HeadMesh
+
+const PROJECTILE_ELEMENTS := [
+	{"name": &"solar", "color": Color(1.0, 0.78, 0.12, 1.0)},
+	{"name": &"frost", "color": Color(0.2, 0.82, 1.0, 1.0)},
+	{"name": &"venom", "color": Color(0.35, 1.0, 0.26, 1.0)},
+	{"name": &"knockback", "color": Color(1.0, 0.32, 0.78, 1.0)},
+]
 
 var health: int
 var mouse_captured: bool = false
@@ -52,6 +60,9 @@ var recoil_tween: Tween
 var muzzle_tween: Tween
 var camera_kick_tween: Tween
 var was_on_floor: bool = false
+var charging_shot: bool = false
+var charge_time: float = 0.0
+var projectile_index: int = 0
 
 signal health_changed(value: int, max_value: int)
 signal died
@@ -59,6 +70,7 @@ signal died
 func _ready() -> void:
 	add_to_group("player")
 	health = max_health
+	muzzle_flash.material_override = muzzle_flash.material_override.duplicate()
 	muzzle_flash.visible = false
 	muzzle_light.light_energy = 0.0
 	remote_position = global_position
@@ -96,7 +108,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if not mouse_captured:
 			_capture_mouse()
 		else:
-			_shoot()
+			_start_charging_shot()
+	elif event.is_action_released("shoot") and charging_shot:
+		_shoot(charge_time / max_charge_time)
 	elif event.is_action_pressed("ui_unpause"):
 		_release_mouse()
 
@@ -105,6 +119,8 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		return
 	if _is_locally_controlled():
+		if charging_shot:
+			_update_charge(delta)
 		_run_local_movement(delta)
 		if multiplayer.has_multiplayer_peer():
 			sync_player_state.rpc(global_position, head.rotation.y, camera.rotation.x, velocity)
@@ -190,15 +206,32 @@ func _apply_remote_movement(delta: float) -> void:
 	head.rotation.y = rotation.y
 	camera.rotation.x = lerp(camera.rotation.x, remote_pitch, min(14.0 * delta, 1.0))
 
-func _shoot() -> void:
-	_play_shot_feedback()
-	if not shoot_ray.is_colliding():
+func _start_charging_shot() -> void:
+	charging_shot = true
+	charge_time = 0.0
+	muzzle_flash.visible = true
+
+func _update_charge(delta: float) -> void:
+	charge_time = min(charge_time + delta, max_charge_time)
+	var charge_level := charge_time / max_charge_time
+	var pulse := 1.0 + charge_level * 1.1 + sin(Time.get_ticks_msec() * 0.025) * 0.08
+	muzzle_flash.scale = Vector3.ONE * pulse
+
+func _shoot(charge_level: float) -> void:
+	charging_shot = false
+	charge_level = clamp(charge_level, 0.0, 1.0)
+	var element = PROJECTILE_ELEMENTS[projectile_index % PROJECTILE_ELEMENTS.size()]
+	projectile_index += 1
+	var shot_color: Color = element.color
+	var shot_effect: StringName = element.name
+	_play_shot_feedback(shot_color, charge_level)
+	if projectile_scene == null:
+		push_warning("Player cannot shoot because no projectile scene is assigned.")
 		return
-	var collider := shoot_ray.get_collider()
-	var hit := _extract_hit_data(collider)
-	if hit.is_empty():
-		return
-	_apply_zombie_hit(hit.zombie, hit.zone, hit.amount, -head.global_transform.basis.z, 5.5)
+	var projectile := projectile_scene.instantiate()
+	get_tree().current_scene.add_child(projectile)
+	projectile.configure(shot_color, shot_effect, charge_level)
+	projectile.launch(muzzle_flash.global_position, -camera.global_transform.basis.z.normalized())
 
 func _try_melee_attack() -> void:
 	if melee_timer > 0.0:
@@ -264,7 +297,7 @@ func _process_slide_collisions() -> void:
 				direction = -head.global_transform.basis.z
 			_apply_zombie_hit(collider, "torso", 1, direction, melee_force + 2.5)
 
-func _play_shot_feedback() -> void:
+func _play_shot_feedback(shot_color: Color, charge_level: float) -> void:
 	if recoil_tween:
 		recoil_tween.kill()
 	if muzzle_tween:
@@ -272,21 +305,34 @@ func _play_shot_feedback() -> void:
 	if camera_kick_tween:
 		camera_kick_tween.kill()
 	gun.position = gun_rest_position
+	_set_muzzle_color(shot_color)
 	muzzle_flash.visible = true
-	muzzle_light.light_energy = 2.6
+	muzzle_flash.scale = Vector3.ONE * (1.0 + charge_level * 1.2)
+	muzzle_light.light_color = shot_color
+	muzzle_light.light_energy = 2.6 + charge_level * 2.2
 	muzzle_tween = create_tween()
 	muzzle_tween.tween_interval(0.05)
 	muzzle_tween.tween_callback(func():
 		muzzle_flash.visible = false
+		muzzle_flash.scale = Vector3.ONE
 		muzzle_light.light_energy = 0.0
 	)
+	var recoil := Vector3(0, 0.014 + charge_level * 0.02, 0.1 + charge_level * 0.12)
 	recoil_tween = create_tween()
-	recoil_tween.tween_property(gun, "position", gun_rest_position + Vector3(0, 0.014, 0.1), 0.035)
+	recoil_tween.tween_property(gun, "position", gun_rest_position + recoil, 0.035)
 	recoil_tween.tween_property(gun, "position", gun_rest_position, 0.12)
 	var orig_x := camera.rotation.x
 	camera_kick_tween = create_tween()
-	camera_kick_tween.tween_property(camera, "rotation:x", orig_x + 0.018, 0.025)
+	camera_kick_tween.tween_property(camera, "rotation:x", orig_x + 0.018 + charge_level * 0.018, 0.025)
 	camera_kick_tween.tween_property(camera, "rotation:x", orig_x, 0.11)
+
+func _set_muzzle_color(shot_color: Color) -> void:
+	var material := muzzle_flash.material_override as StandardMaterial3D
+	if material == null:
+		return
+	material.albedo_color = shot_color
+	material.emission = shot_color
+	material.emission_energy_multiplier = 4.0
 
 func _play_melee_feedback() -> void:
 	if recoil_tween:
@@ -365,7 +411,6 @@ func _is_locally_controlled() -> bool:
 func _update_local_visual_mode() -> void:
 	var local := _is_locally_controlled()
 	camera.current = local
-	shoot_ray.enabled = local
 	gun.visible = local
 	avatar_root.visible = not local
 	head_mesh.visible = not local

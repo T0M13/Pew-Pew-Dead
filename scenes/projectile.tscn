@@ -1,0 +1,152 @@
+[gd_scene load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/projectile.gd" id="1_projectile"]
+[ext_resource type="PackedScene" path="res://scenes/projectile_impact.tscn" id="2_impact"]
+
+[sub_resource type="SphereShape3D" id="shape_projectile"]
+radius = 0.12
+
+[sub_resource type="StandardMaterial3D" id="mat_core"]
+albedo_color = Color(1, 0.96, 0.76, 1)
+emission_enabled = true
+emission = Color(1, 0.94, 0.45, 1)
+emission_energy_multiplier = 6.0
+
+[sub_resource type="StandardMaterial3D" id="mat_glow"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 0.78, 0.12, 0.42)
+emission_enabled = true
+emission = Color(1, 0.78, 0.12, 1)
+emission_energy_multiplier = 2.5
+
+[sub_resource type="SphereMesh" id="mesh_core"]
+radius = 0.085
+height = 0.17
+radial_segments = 12
+rings = 6
+
+[sub_resource type="SphereMesh" id="mesh_aura"]
+radius = 0.16
+height = 0.32
+radial_segments = 16
+rings = 8
+
+[sub_resource type="QuadMesh" id="mesh_billboard"]
+size = Vector2(0.5, 0.5)
+
+[sub_resource type="CylinderMesh" id="mesh_tail"]
+top_radius = 0.025
+bottom_radius = 0.13
+height = 0.72
+radial_segments = 12
+rings = 2
+
+[sub_resource type="SphereMesh" id="mesh_solar"]
+radius = 0.12
+height = 0.24
+radial_segments = 12
+rings = 6
+
+[sub_resource type="PrismMesh" id="mesh_frost"]
+left_to_right = 0.18
+size = Vector3(0.26, 0.3, 0.26)
+
+[sub_resource type="SphereMesh" id="mesh_venom"]
+radius = 0.105
+height = 0.3
+radial_segments = 10
+rings = 5
+
+[sub_resource type="TorusMesh" id="mesh_knockback"]
+inner_radius = 0.095
+outer_radius = 0.155
+rings = 12
+ring_segments = 6
+
+[sub_resource type="SphereMesh" id="mesh_spark"]
+radius = 0.035
+height = 0.07
+radial_segments = 8
+rings = 4
+
+[sub_resource type="StandardMaterial3D" id="mat_ribbon"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 0.78, 0.12, 0.5)
+emission_enabled = true
+emission = Color(1, 0.78, 0.12, 1)
+emission_energy_multiplier = 1.7
+
+[node name="Projectile" type="CharacterBody3D"]
+collision_layer = 8
+collision_mask = 13
+script = ExtResource("1_projectile")
+impact_scene = ExtResource("2_impact")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("shape_projectile")
+
+[node name="VisualRoot" type="Node3D" parent="."]
+
+[node name="BillboardGlow" type="MeshInstance3D" parent="VisualRoot"]
+mesh = SubResource("mesh_billboard")
+material_override = SubResource("mat_glow")
+
+[node name="CometTail" type="MeshInstance3D" parent="VisualRoot"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0.34)
+mesh = SubResource("mesh_tail")
+material_override = SubResource("mat_glow")
+
+[node name="AuraMesh" type="MeshInstance3D" parent="VisualRoot"]
+mesh = SubResource("mesh_aura")
+material_override = SubResource("mat_glow")
+
+[node name="CoreMesh" type="MeshInstance3D" parent="VisualRoot"]
+mesh = SubResource("mesh_core")
+material_override = SubResource("mat_core")
+
+[node name="ElementShapes" type="Node3D" parent="VisualRoot"]
+
+[node name="SolarOrb" type="MeshInstance3D" parent="VisualRoot/ElementShapes"]
+mesh = SubResource("mesh_solar")
+material_override = SubResource("mat_core")
+
+[node name="FrostShard" type="MeshInstance3D" parent="VisualRoot/ElementShapes"]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0, 0)
+mesh = SubResource("mesh_frost")
+material_override = SubResource("mat_core")
+visible = false
+
+[node name="VenomDrop" type="MeshInstance3D" parent="VisualRoot/ElementShapes"]
+transform = Transform3D(1, 0, 0, 0, 0.7, -0.25, 0, 0.25, 0.7, 0, 0, 0)
+mesh = SubResource("mesh_venom")
+material_override = SubResource("mat_core")
+visible = false
+
+[node name="KnockbackPulse" type="MeshInstance3D" parent="VisualRoot/ElementShapes"]
+mesh = SubResource("mesh_knockback")
+material_override = SubResource("mat_core")
+visible = false
+
+[node name="OrbitSparks" type="Node3D" parent="VisualRoot"]
+
+[node name="Spark1" type="MeshInstance3D" parent="VisualRoot/OrbitSparks"]
+mesh = SubResource("mesh_spark")
+material_override = SubResource("mat_core")
+
+[node name="Spark2" type="MeshInstance3D" parent="VisualRoot/OrbitSparks"]
+mesh = SubResource("mesh_spark")
+material_override = SubResource("mat_core")
+
+[node name="Spark3" type="MeshInstance3D" parent="VisualRoot/OrbitSparks"]
+mesh = SubResource("mesh_spark")
+material_override = SubResource("mat_core")
+
+[node name="Spark4" type="MeshInstance3D" parent="VisualRoot/OrbitSparks"]
+mesh = SubResource("mesh_spark")
+material_override = SubResource("mat_core")
+
+[node name="RibbonTrail" type="MeshInstance3D" parent="."]
+material_override = SubResource("mat_ribbon")
