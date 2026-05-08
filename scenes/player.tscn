@@ -1,6 +1,7 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_p"]
+[ext_resource type="PackedScene" path="res://scenes/projectile.tscn" id="2_projectile"]
 
 [sub_resource type="CapsuleShape3D" id="cap1"]
 radius = 0.35
@@ -58,6 +59,7 @@ size = Vector3(0.32, 0.18, 0.42)
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("1_p")
+projectile_scene = ExtResource("2_projectile")
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
@@ -130,8 +132,3 @@ light_color = Color(1, 0.85, 0.45, 1)
 light_energy = 0.0
 omni_range = 3.5
 shadow_enabled = false
-
-[node name="ShootRay" type="RayCast3D" parent="Head/Camera3D"]
-target_position = Vector3(0, 0, -50)
-collide_with_areas = true
-collision_mask = 13

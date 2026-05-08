@@ -36,6 +36,11 @@ var crawl_mode: bool = false
 var knockback_velocity: Vector3 = Vector3.ZERO
 var severed_parts: Dictionary = {}
 var mesh_rest_y: float = 0.0
+var slow_timer: float = 0.0
+var poison_timer: float = 0.0
+var poison_tick_timer: float = 0.0
+var mesh_base_colors: Dictionary[StandardMaterial3D, Color] = {}
+var hit_flash_tween: Tween
 
 signal died(zombie)
 
@@ -53,6 +58,7 @@ func _ready() -> void:
 		"leg_l": false,
 		"leg_r": false,
 	}
+	_prepare_hit_flash_materials()
 	_select_target()
 
 func _physics_process(delta: float) -> void:
@@ -61,10 +67,13 @@ func _physics_process(delta: float) -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		_apply_remote_state(delta)
 		return
+	_update_status_effects(delta)
 	_select_target()
 	if target == null:
 		return
 	var active_speed := crawl_speed if crawl_mode else move_speed
+	if slow_timer > 0.0:
+		active_speed *= 0.52
 	var to_target := target.global_position - global_position
 	to_target.y = 0.0
 	if to_target.length() > 0.05:
@@ -119,12 +128,31 @@ func _lunge() -> void:
 	t.tween_property(mesh_root, "scale", Vector3(0.85, 1.15, 0.85), 0.06)
 	t.tween_property(mesh_root, "scale", Vector3.ONE, 0.18)
 
-func take_damage(amount: int) -> void:
-	take_hit("torso", amount, Vector3.ZERO, 0.0)
-
-func take_hit(zone_name: String, amount: int, impulse_direction: Vector3 = Vector3.ZERO, force: float = 0.0) -> void:
+func take_damage(
+	amount: int,
+	hit_direction: Vector3 = Vector3.ZERO,
+	hit_color: Color = Color.WHITE,
+	hit_effect: StringName = &"",
+	charge: float = 0.0
+) -> void:
 	if dying:
 		return
+	take_hit("torso", amount, hit_direction, 0.0, hit_color, hit_effect, charge)
+
+func take_hit(
+	zone_name: String,
+	amount: int,
+	impulse_direction: Vector3 = Vector3.ZERO,
+	force: float = 0.0,
+	hit_color: Color = Color(1.0, 0.42, 0.35),
+	hit_effect: StringName = &"",
+	charge: float = 0.0
+) -> void:
+	if dying:
+		return
+	if hit_effect != &"":
+		_apply_hit_effect(impulse_direction, hit_effect, charge)
+	_flash_hit(hit_color)
 	var applied_damage := amount
 	match zone_name:
 		"head":
@@ -154,10 +182,57 @@ func take_hit(zone_name: String, amount: int, impulse_direction: Vector3 = Vecto
 	if health <= 0:
 		_die()
 	else:
-		_flash_hit_light(hit_flash_energy, Color(1.0, 0.42, 0.35), 0.18)
+		_flash_hit_light(hit_flash_energy, hit_color, 0.18)
 		var t := create_tween()
 		t.tween_property(mesh_root, "scale", Vector3(1.2, 0.8, 1.2), 0.05)
 		t.tween_property(mesh_root, "scale", Vector3.ONE, 0.12)
+
+func _apply_hit_effect(hit_direction: Vector3, hit_effect: StringName, charge: float) -> void:
+	match hit_effect:
+		&"frost":
+			slow_timer = max(slow_timer, 0.9 + charge * 0.7)
+		&"venom":
+			poison_timer = max(poison_timer, 1.4 + charge * 0.8)
+			poison_tick_timer = min(poison_tick_timer, 0.35)
+		&"knockback":
+			apply_impulse(hit_direction, 2.8 + charge * 4.0)
+
+func _update_status_effects(delta: float) -> void:
+	slow_timer = max(0.0, slow_timer - delta)
+	if poison_timer <= 0.0:
+		return
+	poison_timer = max(0.0, poison_timer - delta)
+	poison_tick_timer -= delta
+	if poison_tick_timer <= 0.0:
+		poison_tick_timer = 0.7
+		take_hit("torso", 1, Vector3.ZERO, 0.0, Color(0.5, 1.0, 0.25, 1.0))
+
+func _prepare_hit_flash_materials() -> void:
+	for child in mesh_root.get_children():
+		if child is MeshInstance3D:
+			var mesh_instance := child as MeshInstance3D
+			var material := mesh_instance.material_override as StandardMaterial3D
+			if material:
+				var duplicate := material.duplicate() as StandardMaterial3D
+				mesh_instance.material_override = duplicate
+				mesh_base_colors[duplicate] = duplicate.albedo_color
+
+func _flash_hit(hit_color: Color) -> void:
+	if hit_flash_tween:
+		hit_flash_tween.kill()
+	for material in mesh_base_colors:
+		material.albedo_color = hit_color.lerp(Color.WHITE, 0.35)
+		material.emission_enabled = true
+		material.emission = hit_color
+		material.emission_energy_multiplier = 1.8
+	hit_flash_tween = create_tween()
+	hit_flash_tween.tween_interval(0.08)
+	hit_flash_tween.tween_callback(_restore_hit_flash_materials)
+
+func _restore_hit_flash_materials() -> void:
+	for material in mesh_base_colors:
+		material.albedo_color = mesh_base_colors[material]
+		material.emission_enabled = false
 
 func apply_remote_state(pos: Vector3, yaw: float) -> void:
 	remote_position = pos
