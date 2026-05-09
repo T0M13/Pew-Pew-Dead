@@ -227,6 +227,5 @@ script = ExtResource("3_wave")
 zombie_scene = ExtResource("4_zombie")
 spawn_points = [NodePath("../SpawnPoints/SP1"), NodePath("../SpawnPoints/SP2"), NodePath("../SpawnPoints/SP3"), NodePath("../SpawnPoints/SP4")]
 spawn_parent_path = NodePath("../Zombies")
-waves = Array[int]([5, 10, 15])
 spawn_interval = 0.7
 wave_break = 3.0

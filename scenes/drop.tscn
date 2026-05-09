@@ -1,0 +1,59 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/drop.gd" id="1_drop"]
+
+[sub_resource type="SphereShape3D" id="shape_pickup"]
+radius = 0.95
+
+[sub_resource type="BoxMesh" id="mesh_crystal"]
+size = Vector3(0.55, 0.7, 0.55)
+
+[sub_resource type="StandardMaterial3D" id="mat_crystal"]
+albedo_color = Color(0.95, 0.45, 0.55, 1)
+emission_enabled = true
+emission = Color(0.95, 0.45, 0.55, 1)
+emission_energy_multiplier = 4.5
+metallic = 0.2
+roughness = 0.25
+
+[sub_resource type="SphereMesh" id="mesh_halo"]
+radius = 0.85
+height = 1.7
+radial_segments = 16
+rings = 10
+
+[sub_resource type="StandardMaterial3D" id="mat_halo"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.95, 0.45, 0.55, 0.45)
+emission_enabled = true
+emission = Color(0.95, 0.45, 0.55, 1)
+emission_energy_multiplier = 2.4
+
+[sub_resource type="StandardMaterial3D" id="mat_unused"]
+
+[node name="Drop" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_drop")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("shape_pickup")
+
+[node name="Body" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+
+[node name="Crystal" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(0.866, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866, 0, 0, 0)
+mesh = SubResource("mesh_crystal")
+material_override = SubResource("mat_crystal")
+
+[node name="Halo" type="MeshInstance3D" parent="Body"]
+mesh = SubResource("mesh_halo")
+material_override = SubResource("mat_halo")
+
+[node name="Light" type="OmniLight3D" parent="Body"]
+light_color = Color(0.95, 0.45, 0.55, 1)
+light_energy = 1.8
+omni_range = 4.5
