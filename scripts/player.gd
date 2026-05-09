@@ -35,6 +35,8 @@ extends CharacterBody3D
 @export var pickup_damage_step: int = 1
 
 var damage_bonus: int = 0
+var projectile_speed_bonus: float = 0.0
+var lifesteal_per_kill: int = 0
 
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var head: Node3D = $Head
@@ -265,6 +267,8 @@ func _shoot(charge_level: float) -> void:
 	var projectile := projectile_scene.instantiate()
 	get_tree().current_scene.add_child(projectile)
 	projectile.configure(shot_color, shot_effect, charge_level, damage_bonus)
+	if projectile_speed_bonus > 0.0 and "speed" in projectile:
+		projectile.speed *= 1.0 + projectile_speed_bonus
 	projectile.launch(muzzle_flash.global_position, -camera.global_transform.basis.z.normalized())
 	_spawn_muzzle_smoke(charge_level)
 
@@ -385,6 +389,17 @@ func _play_melee_feedback() -> void:
 	recoil_tween = create_tween()
 	recoil_tween.tween_property(gun, "rotation_degrees:z", -14.0, 0.06)
 	recoil_tween.tween_property(gun, "rotation_degrees:z", 0.0, 0.12)
+
+func apply_card(card_id: StringName) -> void:
+	if dead:
+		return
+	CardLibrary.apply(self, card_id)
+
+func apply_lifesteal_tick() -> void:
+	if dead or lifesteal_per_kill <= 0:
+		return
+	health = mini(max_health, health + lifesteal_per_kill)
+	health_changed.emit(health, max_health)
 
 func apply_pickup(drop_type: StringName) -> void:
 	if dead:

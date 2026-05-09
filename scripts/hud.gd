@@ -4,6 +4,7 @@ extends CanvasLayer
 @onready var wave_label: Label = $Margin/VBox/Wave
 @onready var kills_label: Label = $Margin/VBox/Kills
 @onready var stamina_label: Label = $Margin/VBox/Stamina
+@onready var card_picker: Control = $CardPicker
 @onready var center_label: Label = $CenterMessage
 @onready var menu_panel: PanelContainer = $MenuPanel
 @onready var join_ip: LineEdit = $MenuPanel/Margin/VBox/JoinIP
@@ -22,6 +23,7 @@ signal host_requested
 signal join_requested(address: String)
 signal command_submitted(command: String)
 signal console_visibility_changed(visible_state: bool)
+signal card_picked(card_id: StringName)
 
 func _ready() -> void:
 	center_label.text = ""
@@ -30,6 +32,29 @@ func _ready() -> void:
 	console_log.clear()
 	add_console_line("Console ready. Type 'help' for commands.")
 	_update_perf_labels()
+	if card_picker and card_picker.has_signal("card_picked"):
+		card_picker.card_picked.connect(_on_card_picked)
+
+func _on_card_picked(card_id: StringName) -> void:
+	card_picked.emit(card_id)
+
+func show_card_picker(card_ids: Array, wave_index: int) -> void:
+	if card_picker == null:
+		return
+	card_picker.show_offer(card_ids, wave_index)
+
+func hide_card_picker() -> void:
+	if card_picker == null:
+		return
+	card_picker.hide_picker()
+
+func mark_card_picker_waiting(message: String) -> void:
+	if card_picker == null:
+		return
+	card_picker.show_waiting(message)
+
+func is_card_picker_visible() -> bool:
+	return card_picker != null and card_picker.visible
 
 func _process(delta: float) -> void:
 	last_frame_ms = delta * 1000.0

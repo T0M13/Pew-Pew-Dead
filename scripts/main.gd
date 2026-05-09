@@ -26,6 +26,11 @@ var current_wave_total: int = 0
 var total_kills: int = 0
 var drop_nodes: Dictionary = {}
 var next_drop_id: int = 1
+var card_phase_active: bool = false
+var card_phase_wave: int = 0
+var pending_card_offers: Dictionary = {}
+var pending_card_picks: Dictionary = {}
+var local_card_offer: Array = []
 
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)
@@ -45,6 +50,8 @@ func _ready() -> void:
 	wave_manager.all_waves_complete.connect(_on_all_waves_complete)
 	wave_manager.zombie_spawned.connect(_on_zombie_spawned)
 	wave_manager.drop_requested.connect(_on_drop_requested)
+	wave_manager.card_phase_requested.connect(_on_card_phase_requested)
+	hud.card_picked.connect(_on_local_card_picked)
 
 	hud.set_status(status_text)
 	hud.show_menu(true)
@@ -123,6 +130,12 @@ func _reset_session_state() -> void:
 		if is_instance_valid(d):
 			d.queue_free()
 	drop_nodes.clear()
+	card_phase_active = false
+	pending_card_offers.clear()
+	pending_card_picks.clear()
+	local_card_offer.clear()
+	if hud:
+		hud.hide_card_picker()
 	wave_manager.reset_waves()
 	if multiplayer.has_multiplayer_peer():
 		multiplayer.multiplayer_peer.close()
@@ -283,9 +296,33 @@ func _on_zombie_spawned(zombie: Node) -> void:
 		return
 	zombie.network_id = next_zombie_id
 	zombie_nodes[next_zombie_id] = zombie
+	zombie.died.connect(_on_zombie_died_for_lifesteal)
 	if multiplayer.has_multiplayer_peer():
 		spawn_zombie.rpc(next_zombie_id, zombie.global_position, zombie.variant)
 	next_zombie_id += 1
+
+func _on_zombie_died_for_lifesteal(zombie: Node) -> void:
+	if not _is_server_authority() or not is_instance_valid(zombie):
+		return
+	var pos: Vector3 = zombie.global_position
+	for peer_id in player_nodes.keys():
+		var p: Node = player_nodes[peer_id]
+		if not is_instance_valid(p) or p.dead:
+			continue
+		if p.lifesteal_per_kill <= 0:
+			continue
+		if pos.distance_to(p.global_position) > 12.0:
+			continue
+		if peer_id == _local_peer_id():
+			p.apply_lifesteal_tick()
+		else:
+			grant_lifesteal.rpc_id(peer_id)
+
+@rpc("authority", "call_remote", "reliable")
+func grant_lifesteal() -> void:
+	var p: Node = player_nodes.get(_local_peer_id(), null)
+	if p and p.has_method("apply_lifesteal_tick"):
+		p.apply_lifesteal_tick()
 
 @rpc("authority", "call_local", "reliable")
 func spawn_zombie(zombie_id: int, spawn_position: Vector3, zombie_variant: StringName = &"walker") -> void:
@@ -328,6 +365,104 @@ func show_lose_state() -> void:
 	hud.show_lose()
 	await get_tree().create_timer(3.0).timeout
 	get_tree().reload_current_scene()
+
+func _on_card_phase_requested(wave_index: int) -> void:
+	if not _is_server_authority():
+		return
+	card_phase_active = true
+	card_phase_wave = wave_index
+	pending_card_offers.clear()
+	pending_card_picks.clear()
+	for peer_id in player_nodes.keys():
+		var offer: Array = CardLibrary.random_offer(3)
+		pending_card_offers[peer_id] = offer
+		if peer_id == _local_peer_id():
+			local_card_offer = offer
+			_show_local_cards(offer, wave_index)
+		else:
+			present_cards.rpc_id(peer_id, offer, wave_index)
+	if pending_card_offers.is_empty():
+		_finish_card_phase()
+
+func _show_local_cards(offer: Array, wave_index: int) -> void:
+	if hud == null:
+		return
+	hud.show_card_picker(offer, wave_index)
+	_release_local_menu_control()
+
+func _on_local_card_picked(card_id: StringName) -> void:
+	if not card_phase_active:
+		return
+	var local_id: int = _local_peer_id()
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		submit_card_pick.rpc_id(1, card_id)
+		hud.mark_card_picker_waiting("Picked. Waiting for the squad...")
+		return
+	_record_card_pick(local_id, card_id)
+
+@rpc("authority", "call_remote", "reliable")
+func present_cards(offer: Array, wave_index: int) -> void:
+	local_card_offer = offer
+	_show_local_cards(offer, wave_index)
+
+@rpc("any_peer", "call_remote", "reliable")
+func submit_card_pick(card_id: StringName) -> void:
+	if not _is_server_authority():
+		return
+	var sender: int = multiplayer.get_remote_sender_id()
+	_record_card_pick(sender, card_id)
+
+func _record_card_pick(peer_id: int, card_id: StringName) -> void:
+	if not card_phase_active:
+		return
+	if not pending_card_offers.has(peer_id):
+		return
+	if pending_card_picks.has(peer_id):
+		return
+	var offer: Array = pending_card_offers[peer_id]
+	if not offer.has(card_id):
+		return
+	pending_card_picks[peer_id] = card_id
+	_apply_card_to_peer(peer_id, card_id)
+	hud.add_console_line("Peer %d picked %s." % [peer_id, card_id])
+	var remaining: int = pending_card_offers.size() - pending_card_picks.size()
+	if remaining > 0:
+		if peer_id == _local_peer_id():
+			hud.mark_card_picker_waiting("Picked. Waiting for %d more..." % remaining)
+		return
+	_finish_card_phase()
+
+func _apply_card_to_peer(peer_id: int, card_id: StringName) -> void:
+	var player: Node = player_nodes.get(peer_id, null)
+	if player == null or not is_instance_valid(player):
+		return
+	if peer_id == _local_peer_id():
+		if player.has_method("apply_card"):
+			player.apply_card(card_id)
+	else:
+		apply_card_remote.rpc_id(peer_id, card_id)
+
+@rpc("authority", "call_remote", "reliable")
+func apply_card_remote(card_id: StringName) -> void:
+	var player: Node = player_nodes.get(_local_peer_id(), null)
+	if player and player.has_method("apply_card"):
+		player.apply_card(card_id)
+
+func _finish_card_phase() -> void:
+	card_phase_active = false
+	pending_card_offers.clear()
+	pending_card_picks.clear()
+	local_card_offer.clear()
+	hud.hide_card_picker()
+	_capture_local_menu_control()
+	if multiplayer.has_multiplayer_peer():
+		end_card_phase.rpc()
+	wave_manager.resolve_card_phase()
+
+@rpc("authority", "call_remote", "reliable")
+func end_card_phase() -> void:
+	hud.hide_card_picker()
+	_capture_local_menu_control()
 
 func _on_drop_requested(_wave_index: int) -> void:
 	if not _is_server_authority():

@@ -25,6 +25,8 @@ signal zombie_killed(remaining: int)
 signal zombie_spawned(zombie)
 signal all_waves_complete
 signal drop_requested(wave_index: int)
+signal card_phase_requested(wave_index: int)
+signal card_phase_done
 
 func start_waves() -> void:
 	if running:
@@ -115,5 +117,12 @@ func _advance_wave() -> void:
 	var chance: float = minf(drop_chance_max, drop_chance_per_wave + drop_chance_growth * float(current_wave - 1))
 	if randf() < chance:
 		drop_requested.emit(current_wave)
+	card_phase_requested.emit(current_wave)
+	await card_phase_done
+	if not running:
+		return
 	await get_tree().create_timer(wave_break).timeout
 	_start_next_wave()
+
+func resolve_card_phase() -> void:
+	card_phase_done.emit()
