@@ -1,11 +1,11 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/zombie.gd" id="1_z"]
 [ext_resource type="Script" path="res://scripts/zombie_hitbox.gd" id="2_hit"]
 
 [sub_resource type="CapsuleShape3D" id="zc"]
-radius = 0.4
-height = 1.5
+radius = 0.55
+height = 1.8
 
 [sub_resource type="StandardMaterial3D" id="mat_skin"]
 albedo_color = Color(0.62, 0.85, 0.55, 1)
@@ -25,9 +25,6 @@ roughness = 0.3
 
 [sub_resource type="BoxMesh" id="mesh_body"]
 size = Vector3(0.7, 0.9, 0.5)
-
-[sub_resource type="BoxMesh" id="mesh_body_chunk"]
-size = Vector3(0.23, 0.3, 0.5)
 
 [sub_resource type="BoxMesh" id="mesh_head"]
 size = Vector3(0.55, 0.55, 0.55)
@@ -54,13 +51,13 @@ size = Vector3(0.24, 0.24, 0.24)
 radius = 1.0
 
 [sub_resource type="BoxShape3D" id="shape_head_hit"]
-size = Vector3(0.62, 0.62, 0.62)
+size = Vector3(0.78, 0.78, 0.78)
 
 [sub_resource type="BoxShape3D" id="shape_arm_hit"]
-size = Vector3(0.24, 0.78, 0.24)
+size = Vector3(0.4, 0.92, 0.4)
 
 [sub_resource type="BoxShape3D" id="shape_leg_hit"]
-size = Vector3(0.28, 0.78, 0.28)
+size = Vector3(0.42, 0.92, 0.42)
 
 [node name="Zombie" type="CharacterBody3D" groups=["zombies"]]
 collision_layer = 4
@@ -73,51 +70,9 @@ shape = SubResource("zc")
 
 [node name="MeshRoot" type="Node3D" parent="."]
 
-[node name="BodyChunks" type="Node3D" parent="MeshRoot"]
-
-[node name="BodyTopL" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.23, 1.15, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyTopC" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyTopR" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.23, 1.15, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyMidL" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.23, 0.85, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyMidC" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
+[node name="Body" type="MeshInstance3D" parent="MeshRoot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyMidR" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.23, 0.85, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyLowL" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.23, 0.55, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyLowC" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
-mesh = SubResource("mesh_body_chunk")
-material_override = SubResource("mat_dark")
-
-[node name="BodyLowR" type="MeshInstance3D" parent="MeshRoot/BodyChunks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.23, 0.55, 0)
-mesh = SubResource("mesh_body_chunk")
+mesh = SubResource("mesh_body")
 material_override = SubResource("mat_dark")
 
 [node name="Head" type="MeshInstance3D" parent="MeshRoot"]

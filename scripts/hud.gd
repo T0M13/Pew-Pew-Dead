@@ -3,6 +3,7 @@ extends CanvasLayer
 @onready var health_label: Label = $Margin/VBox/Health
 @onready var wave_label: Label = $Margin/VBox/Wave
 @onready var kills_label: Label = $Margin/VBox/Kills
+@onready var stamina_label: Label = $Margin/VBox/Stamina
 @onready var center_label: Label = $CenterMessage
 @onready var menu_panel: PanelContainer = $MenuPanel
 @onready var join_ip: LineEdit = $MenuPanel/Margin/VBox/JoinIP
@@ -43,6 +44,9 @@ func reset_for_session() -> void:
 
 func set_health(value: int, max_value: int) -> void:
 	health_label.text = "HP %d / %d" % [value, max_value]
+
+func set_stamina(value: float, max_value: float) -> void:
+	stamina_label.text = "STAM %d / %d" % [int(round(value)), int(round(max_value))]
 
 func set_wave(wave: int, total: int) -> void:
 	wave_label.text = "Wave %d  (%d zombies)" % [wave, total]

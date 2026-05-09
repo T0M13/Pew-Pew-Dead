@@ -10,6 +10,9 @@ const MAX_CONNECTIONS := 4
 
 var player_scene: PackedScene = preload("res://scenes/player.tscn")
 var zombie_scene: PackedScene = preload("res://scenes/zombie.tscn")
+var drop_scene: PackedScene = preload("res://scenes/drop.tscn")
+
+const DROP_TYPES: Array[StringName] = [&"heal", &"max_health", &"speed", &"damage"]
 
 var session_started: bool = false
 var status_text: String = "Choose Solo, Host, or Join to start."
@@ -21,6 +24,8 @@ var alive_players: int = 0
 var current_wave_number: int = 0
 var current_wave_total: int = 0
 var total_kills: int = 0
+var drop_nodes: Dictionary = {}
+var next_drop_id: int = 1
 
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)
@@ -39,6 +44,7 @@ func _ready() -> void:
 	wave_manager.zombie_killed.connect(_on_zombie_killed)
 	wave_manager.all_waves_complete.connect(_on_all_waves_complete)
 	wave_manager.zombie_spawned.connect(_on_zombie_spawned)
+	wave_manager.drop_requested.connect(_on_drop_requested)
 
 	hud.set_status(status_text)
 	hud.show_menu(true)
@@ -98,6 +104,7 @@ func _reset_session_state() -> void:
 	session_started = false
 	status_text = "Choose Solo, Host, or Join to start."
 	next_zombie_id = 1
+	next_drop_id = 1
 	alive_players = 0
 	current_wave_number = 0
 	current_wave_total = 0
@@ -111,6 +118,11 @@ func _reset_session_state() -> void:
 	zombie_nodes.clear()
 	for child in zombies_root.get_children():
 		child.queue_free()
+	for did in drop_nodes.keys():
+		var d: Node = drop_nodes[did]
+		if is_instance_valid(d):
+			d.queue_free()
+	drop_nodes.clear()
 	wave_manager.reset_waves()
 	if multiplayer.has_multiplayer_peer():
 		multiplayer.multiplayer_peer.close()
@@ -148,8 +160,10 @@ func _spawn_player_for_peer(peer_id: int) -> void:
 		player.died.connect(_player_died_on_server)
 	if peer_id == _local_peer_id():
 		player.health_changed.connect(hud.set_health)
+		player.stamina_changed.connect(hud.set_stamina)
 		player.died.connect(_on_local_player_died)
 		hud.set_health(player.max_health, player.max_health)
+		hud.set_stamina(player.stamina_max, player.stamina_max)
 
 @rpc("authority", "call_local", "reliable")
 func spawn_player(peer_id: int, spawn_index: int) -> void:
@@ -199,7 +213,7 @@ func _on_peer_connected(peer_id: int) -> void:
 	for zombie_id in zombie_nodes.keys():
 		var zombie = zombie_nodes[zombie_id]
 		if is_instance_valid(zombie):
-			spawn_zombie.rpc_id(peer_id, zombie_id, zombie.global_position)
+			spawn_zombie.rpc_id(peer_id, zombie_id, zombie.global_position, zombie.variant)
 	if current_wave_number > 0:
 		sync_wave.rpc_id(peer_id, current_wave_number, current_wave_total)
 	sync_kills.rpc_id(peer_id, total_kills)
@@ -270,16 +284,17 @@ func _on_zombie_spawned(zombie: Node) -> void:
 	zombie.network_id = next_zombie_id
 	zombie_nodes[next_zombie_id] = zombie
 	if multiplayer.has_multiplayer_peer():
-		spawn_zombie.rpc(next_zombie_id, zombie.global_position)
+		spawn_zombie.rpc(next_zombie_id, zombie.global_position, zombie.variant)
 	next_zombie_id += 1
 
 @rpc("authority", "call_local", "reliable")
-func spawn_zombie(zombie_id: int, spawn_position: Vector3) -> void:
+func spawn_zombie(zombie_id: int, spawn_position: Vector3, zombie_variant: StringName = &"walker") -> void:
 	if zombie_nodes.has(zombie_id):
 		return
 	var zombie = zombie_scene.instantiate()
 	zombie.name = "Zombie_%d" % zombie_id
 	zombie.network_id = zombie_id
+	zombie.variant = zombie_variant
 	zombies_root.add_child(zombie)
 	zombie.global_position = spawn_position
 	zombie_nodes[zombie_id] = zombie
@@ -313,6 +328,88 @@ func show_lose_state() -> void:
 	hud.show_lose()
 	await get_tree().create_timer(3.0).timeout
 	get_tree().reload_current_scene()
+
+func _on_drop_requested(_wave_index: int) -> void:
+	if not _is_server_authority():
+		return
+	var pos: Vector3 = _pick_drop_position()
+	var drop_type: StringName = DROP_TYPES.pick_random()
+	var drop_id: int = next_drop_id
+	next_drop_id += 1
+	if multiplayer.has_multiplayer_peer():
+		spawn_drop.rpc(drop_id, pos, drop_type)
+	else:
+		spawn_drop(drop_id, pos, drop_type)
+	hud.flash_message(_drop_announce(drop_type), 1.4)
+	hud.add_console_line("Drop spawned: %s" % drop_type)
+
+func _pick_drop_position() -> Vector3:
+	var obstacle_keepout: Array = [
+		Vector3(6, 0, 5), Vector3(-7, 0, -4),
+		Vector3(5, 0, -8), Vector3(-8, 0, 7),
+		Vector3(0, 0, 12),
+	]
+	for _attempt in range(8):
+		var x: float = randf_range(-13.0, 13.0)
+		var z: float = randf_range(-13.0, 13.0)
+		var p := Vector3(x, 0.55, z)
+		var ok := true
+		for c in obstacle_keepout:
+			if Vector2(p.x - c.x, p.z - c.z).length() < 2.6:
+				ok = false
+				break
+		if ok:
+			return p
+	return Vector3(randf_range(-10.0, 10.0), 0.55, randf_range(-10.0, 10.0))
+
+func _drop_announce(drop_type: StringName) -> String:
+	match drop_type:
+		&"heal": return "DROP: HEAL PACK"
+		&"max_health": return "DROP: VITALITY +"
+		&"speed": return "DROP: SPEED +"
+		&"damage": return "DROP: DAMAGE +"
+		_: return "DROP"
+
+@rpc("authority", "call_local", "reliable")
+func spawn_drop(drop_id: int, pos: Vector3, drop_type: StringName) -> void:
+	if drop_nodes.has(drop_id):
+		return
+	var drop = drop_scene.instantiate()
+	drop.name = "Drop_%d" % drop_id
+	drop.set_meta("drop_id", drop_id)
+	add_child(drop)
+	drop.global_position = pos
+	drop.configure(drop_type)
+	drop.pickup_consumed.connect(_on_drop_consumed)
+	drop_nodes[drop_id] = drop
+
+@rpc("authority", "call_local", "reliable")
+func despawn_drop(drop_id: int) -> void:
+	if not drop_nodes.has(drop_id):
+		return
+	var d: Node = drop_nodes[drop_id]
+	drop_nodes.erase(drop_id)
+	if is_instance_valid(d):
+		d.queue_free()
+
+func _on_drop_consumed(drop: Node) -> void:
+	if not is_instance_valid(drop) or not drop.has_meta("drop_id"):
+		return
+	var drop_id: int = drop.get_meta("drop_id")
+	if not multiplayer.has_multiplayer_peer():
+		drop_nodes.erase(drop_id)
+		return
+	if multiplayer.is_server():
+		despawn_drop.rpc(drop_id)
+	else:
+		request_drop_despawn.rpc_id(1, drop_id)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_drop_despawn(drop_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if drop_nodes.has(drop_id):
+		despawn_drop.rpc(drop_id)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_zombie_hit(zombie_id: int, zone_name: String, amount: int, impulse_direction: Vector3 = Vector3.ZERO, force: float = 0.0) -> void:
@@ -422,7 +519,7 @@ func _on_console_command(command: String) -> void:
 		return
 	match parts[0].to_lower():
 		"help":
-			hud.add_console_line("Commands: help, clear, restart, menu, killall, wave")
+			hud.add_console_line("Commands: help, clear, restart, menu, killall, wave, drop [type]")
 		"clear":
 			hud.clear_console()
 		"restart":
@@ -436,5 +533,25 @@ func _on_console_command(command: String) -> void:
 			hud.add_console_line("All active zombies removed.")
 		"wave":
 			hud.add_console_line("Wave %d / kills %d / alive zombies %d" % [current_wave_number, total_kills, zombie_nodes.size()])
+		"drop":
+			if not _is_server_authority():
+				hud.add_console_line("Only the host can spawn drops.")
+				return
+			var requested_type: StringName = DROP_TYPES.pick_random()
+			if parts.size() >= 2:
+				var raw := String(parts[1]).to_lower()
+				if DROP_TYPES.has(StringName(raw)):
+					requested_type = StringName(raw)
+				else:
+					hud.add_console_line("Unknown drop type. Use: heal, max_health, speed, damage")
+					return
+			var pos: Vector3 = _pick_drop_position()
+			var drop_id: int = next_drop_id
+			next_drop_id += 1
+			if multiplayer.has_multiplayer_peer():
+				spawn_drop.rpc(drop_id, pos, requested_type)
+			else:
+				spawn_drop(drop_id, pos, requested_type)
+			hud.add_console_line("Spawned %s drop." % requested_type)
 		_:
 			hud.add_console_line("Unknown command: %s" % command)

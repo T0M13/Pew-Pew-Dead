@@ -1,0 +1,49 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/zombie_spit.gd" id="1_spit"]
+
+[sub_resource type="SphereShape3D" id="shape_spit"]
+radius = 0.28
+
+[sub_resource type="SphereMesh" id="mesh_core"]
+radius = 0.22
+height = 0.44
+radial_segments = 14
+rings = 7
+
+[sub_resource type="StandardMaterial3D" id="mat_spit"]
+albedo_color = Color(0.55, 0.95, 0.4, 1)
+emission_enabled = true
+emission = Color(0.55, 1, 0.35, 1)
+emission_energy_multiplier = 4.0
+metallic = 0.1
+roughness = 0.3
+
+[sub_resource type="SphereMesh" id="mesh_halo"]
+radius = 0.34
+height = 0.68
+radial_segments = 12
+rings = 6
+
+[node name="ZombieSpit" type="Area3D"]
+collision_layer = 0
+collision_mask = 3
+script = ExtResource("1_spit")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("shape_spit")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Core" type="MeshInstance3D" parent="Visual"]
+mesh = SubResource("mesh_core")
+material_override = SubResource("mat_spit")
+
+[node name="Halo" type="MeshInstance3D" parent="Visual"]
+mesh = SubResource("mesh_halo")
+
+[node name="Light" type="OmniLight3D" parent="Visual"]
+light_color = Color(0.55, 1, 0.4, 1)
+light_energy = 2.2
+omni_range = 4.5
+shadow_enabled = false

@@ -1,3 +1,10 @@
+## Don't change what already works
+
+- **Treat existing systems as locked.** If a script, scene, signal, behaviour, or value is already in the game and the user did not explicitly ask for it to change, leave it alone. Add new things alongside instead of editing existing ones.
+- This includes: existing exported tuning values, existing damage numbers, existing scene structure, existing input bindings, existing RPC signatures, existing animation/tween timings, existing colors and materials.
+- The exception is bugs the user explicitly reports, or refactors the user explicitly requests. Even then: change the smallest area that fixes the report.
+- When unsure, ask before editing existing code. Adding a new file is always safer than rewriting an existing one.
+
 ## Code quality
 
 - **Leave it better than you found it.** If you touch a file, fix obvious mess in the same area: dead code, unused vars, duplicated logic, inconsistent style. You're authorised to delete clearly unused code, exports, and stale references when you encounter them, as long as it won't break anything.
@@ -30,7 +37,6 @@ Logs include timestamp + level automatically — just pass the message.
 - Defaults to **debug mode**: captures engine + game logs, rotates folders.
 - Pass `--no-debug` (anywhere in args) to skip log capture and run Godot directly.
 - All other args pass through to Godot.
-- After making a code or scene change for the user, start the game with `./run.sh` so the user can immediately try it.
 
 ```bash
 ./run.sh                                    # default — debug logs on
