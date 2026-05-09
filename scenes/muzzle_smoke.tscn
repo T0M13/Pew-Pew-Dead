@@ -1,0 +1,45 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/muzzle_smoke.gd" id="1_smoke"]
+
+[sub_resource type="StandardMaterial3D" id="mat_smoke"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.72, 0.68, 0.62, 0.38)
+
+[sub_resource type="SphereMesh" id="mesh_puff"]
+radius = 0.18
+height = 0.36
+radial_segments = 10
+rings = 5
+
+[sub_resource type="TorusMesh" id="mesh_ring"]
+inner_radius = 0.12
+outer_radius = 0.17
+rings = 14
+ring_segments = 5
+
+[node name="MuzzleSmoke" type="Node3D"]
+script = ExtResource("1_smoke")
+
+[node name="Puff1" type="MeshInstance3D" parent="."]
+mesh = SubResource("mesh_puff")
+material_override = SubResource("mat_smoke")
+
+[node name="Puff2" type="MeshInstance3D" parent="."]
+mesh = SubResource("mesh_puff")
+material_override = SubResource("mat_smoke")
+
+[node name="Puff3" type="MeshInstance3D" parent="."]
+mesh = SubResource("mesh_puff")
+material_override = SubResource("mat_smoke")
+
+[node name="Ring1" type="MeshInstance3D" parent="."]
+mesh = SubResource("mesh_ring")
+material_override = SubResource("mat_smoke")
+visible = false
+
+[node name="Ring2" type="MeshInstance3D" parent="."]
+mesh = SubResource("mesh_ring")
+material_override = SubResource("mat_smoke")
+visible = false

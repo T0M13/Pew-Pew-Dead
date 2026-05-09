@@ -28,6 +28,7 @@ extends CharacterBody3D
 @export var stamina_min_to_jump: float = 14.0
 @export var projectile_scene: PackedScene
 @export var max_charge_time: float = 0.9
+@export var muzzle_smoke_scene: PackedScene = preload("res://scenes/muzzle_smoke.tscn")
 @export var pickup_heal_amount: int = 35
 @export var pickup_max_health_step: int = 20
 @export var pickup_speed_step: float = 0.55
@@ -265,6 +266,16 @@ func _shoot(charge_level: float) -> void:
 	get_tree().current_scene.add_child(projectile)
 	projectile.configure(shot_color, shot_effect, charge_level, damage_bonus)
 	projectile.launch(muzzle_flash.global_position, -camera.global_transform.basis.z.normalized())
+	_spawn_muzzle_smoke(charge_level)
+
+func _spawn_muzzle_smoke(charge_level: float) -> void:
+	if muzzle_smoke_scene == null:
+		return
+	var smoke := muzzle_smoke_scene.instantiate()
+	get_tree().current_scene.add_child(smoke)
+	smoke.global_position = muzzle_flash.global_position
+	if smoke.has_method("play"):
+		smoke.play(-camera.global_transform.basis.z.normalized(), charge_level)
 
 func _try_melee_attack() -> void:
 	if melee_timer > 0.0:

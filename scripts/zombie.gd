@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const BLOOD_SPRAY_SCRIPT: GDScript = preload("res://scripts/blood_spray.gd")
+
 @export var move_speed: float = 2.6
 @export var crawl_speed: float = 1.45
 @export var max_health: int = 2
@@ -326,6 +328,7 @@ func take_hit(
 	if hit_effect != &"":
 		_apply_hit_effect(impulse_direction, hit_effect, charge)
 	_flash_hit(hit_color)
+	_spawn_blood_spray(zone_name, impulse_direction)
 	var applied_damage := amount
 	match zone_name:
 		"head":
@@ -415,6 +418,28 @@ func _restore_hit_flash_materials() -> void:
 	for material in mesh_base_colors:
 		material.albedo_color = mesh_base_colors[material]
 		material.emission_enabled = false
+
+func _spawn_blood_spray(zone_name: String, impulse_direction: Vector3) -> void:
+	var root := get_tree().current_scene
+	if root == null:
+		return
+	var hit_pos: Vector3 = mesh_root.global_position + Vector3(0.0, 1.0, 0.0)
+	var hb: Area3D = null
+	match zone_name:
+		"head": hb = head_hitbox
+		"arm_l": hb = arm_l_hitbox
+		"arm_r": hb = arm_r_hitbox
+		"leg_l": hb = leg_l_hitbox
+		"leg_r": hb = leg_r_hitbox
+	if hb != null:
+		hit_pos = _zone_center(hb)
+	var spray: Node3D = BLOOD_SPRAY_SCRIPT.new()
+	spray.name = "BloodSpray"
+	root.add_child(spray)
+	var spray_dir := impulse_direction
+	if spray_dir.length_squared() < 0.01:
+		spray_dir = Vector3(randf_range(-0.4, 0.4), 0.3, randf_range(-0.4, 0.4))
+	spray.configure(hit_pos, spray_dir, randi_range(10, 16))
 
 func get_zone_for_point(world_point: Vector3) -> String:
 	var entries: Array = [
