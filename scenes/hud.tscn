@@ -45,6 +45,14 @@ theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
 theme_override_constants/outline_size = 5
 theme_override_font_sizes/font_size = 24
 
+[node name="Stamina" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "STAM 100"
+theme_override_colors/font_color = Color(0.22, 0.32, 0.42, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+
 [node name="Crosshair" type="Label" parent="."]
 anchors_preset = 8
 anchor_left = 0.5

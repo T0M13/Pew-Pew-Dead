@@ -44,11 +44,11 @@ func _ready() -> void:
 	_apply_collision_size()
 	_apply_projectile_style()
 
-func configure(shot_color: Color, effect: StringName, charge: float) -> void:
+func configure(shot_color: Color, effect: StringName, charge: float, bonus_damage: int = 0) -> void:
 	projectile_color = shot_color
 	hit_effect = effect
 	charge_level = clamp(charge, 0.0, 1.0)
-	damage = 1 + int(charge_level >= 0.75)
+	damage = 1 + int(charge_level >= 0.75) + maxi(0, bonus_damage)
 	speed = 34.0 - charge_level * 5.0
 	lifetime = 1.8 + charge_level * 0.6
 	bounces_remaining = 1 + int(charge_level >= 0.75)
@@ -87,7 +87,7 @@ func _physics_process(delta: float) -> void:
 	var hit_normal := collision.get_normal()
 	var damage_target := _get_damage_target(collider)
 	if damage_target and not hit_targets.has(damage_target):
-		_damage_target(damage_target)
+		_damage_target(damage_target, hit_position)
 		_spawn_impact(hit_position, hit_normal)
 		if pierces_remaining > 0:
 			pierces_remaining -= 1
@@ -118,11 +118,14 @@ func _get_damage_target(collider: Object) -> Object:
 		return collider
 	return null
 
-func _damage_target(target: Object) -> void:
-	if target.has_method("take_damage"):
+func _damage_target(target: Object, hit_position: Vector3) -> void:
+	var zone: String = "torso"
+	if target.has_method("get_zone_for_point"):
+		zone = target.get_zone_for_point(hit_position)
+	if target.has_method("take_hit"):
+		target.take_hit(zone, damage, direction, 0.0, projectile_color, hit_effect, charge_level)
+	elif target.has_method("take_damage"):
 		target.take_damage(damage, direction, projectile_color, hit_effect, charge_level)
-	elif target.has_method("take_hit"):
-		target.take_hit("torso", damage, direction, 0.0, projectile_color, hit_effect, charge_level)
 
 func _update_visuals(delta: float) -> void:
 	var distance_scale := 1.0

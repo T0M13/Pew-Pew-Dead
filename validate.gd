@@ -5,6 +5,8 @@ func _initialize() -> void:
 		"res://scenes/player.tscn",
 		"res://scenes/projectile.tscn",
 		"res://scenes/projectile_impact.tscn",
+		"res://scenes/drop.tscn",
+		"res://scenes/zombie_spit.tscn",
 		"res://scenes/zombie.tscn",
 		"res://scenes/hud.tscn",
 		"res://scenes/main.tscn",

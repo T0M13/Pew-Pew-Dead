@@ -95,6 +95,18 @@ The benign `WARNING: ObjectDB instances leaked at exit` in stderr is normal — 
 
 ---
 
+## 4b. Don't change what already works
+
+Existing systems are **locked** unless the user explicitly asks for that change. Do not retune existing exported values, restructure existing scenes, rename existing signals or methods, or rewrite existing RPC signatures. If a feature is already in the game and the user did not flag it, leave it alone — add new content beside it instead.
+
+Exceptions:
+- Bugs the user reported.
+- Refactors the user explicitly requested.
+
+Even in those cases, change the smallest area that fixes the report. When in doubt, ask before editing existing code; adding a new file is always safer than rewriting an existing one.
+
+---
+
 ## 5. MCP / external tooling
 
 - **Blender MCP** (`mcp__blender__*`) — used to model `tree.glb` live in a running Blender instance. Pattern: clear scene → build with `bpy.ops.mesh.primitive_*` → assign materials → select hierarchy → `bpy.ops.export_scene.gltf(... export_yup=True ...)` to `assets/`. After exporting, run `godot --import` so Godot picks it up.

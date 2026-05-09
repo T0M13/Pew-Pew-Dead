@@ -1,11 +1,12 @@
 extends CharacterBody3D
 
-@export var move_speed: float = 6.6
-@export var sprint_multiplier: float = 1.75
-@export var sprint_acceleration: float = 24.0
-@export var ground_friction: float = 7.0
-@export var air_acceleration: float = 9.5
-@export var air_speed_cap: float = 12.5
+@export var move_speed: float = 7.6
+@export var sprint_multiplier: float = 1.7
+@export var sprint_acceleration: float = 48.0
+@export var ground_friction: float = 9.0
+@export var air_acceleration: float = 36.0
+@export var air_speed_cap: float = 14.0
+@export var air_strafe_wishspeed: float = 13.0
 @export var slide_initial_speed: float = 15.5
 @export var slide_duration: float = 0.8
 @export var slide_camera_drop: float = 0.34
@@ -19,9 +20,20 @@ extends CharacterBody3D
 @export var melee_angle_dot: float = 0.45
 @export var melee_cooldown: float = 0.45
 @export var melee_force: float = 8.0
-@export var bunnyhop_speed_boost: float = 1.08
+@export var bunnyhop_speed_boost: float = 1.025
+@export var stamina_max: float = 100.0
+@export var stamina_per_jump: float = 18.0
+@export var stamina_regen: float = 22.0
+@export var stamina_regen_delay: float = 0.25
+@export var stamina_min_to_jump: float = 14.0
 @export var projectile_scene: PackedScene
 @export var max_charge_time: float = 0.9
+@export var pickup_heal_amount: int = 35
+@export var pickup_max_health_step: int = 20
+@export var pickup_speed_step: float = 0.55
+@export var pickup_damage_step: int = 1
+
+var damage_bonus: int = 0
 
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var head: Node3D = $Head
@@ -63,13 +75,17 @@ var was_on_floor: bool = false
 var charging_shot: bool = false
 var charge_time: float = 0.0
 var projectile_index: int = 0
+var stamina: float = 0.0
+var stamina_regen_timer: float = 0.0
 
 signal health_changed(value: int, max_value: int)
+signal stamina_changed(value: float, max_value: float)
 signal died
 
 func _ready() -> void:
 	add_to_group("player")
 	health = max_health
+	stamina = stamina_max
 	muzzle_flash.material_override = muzzle_flash.material_override.duplicate()
 	muzzle_flash.visible = false
 	muzzle_light.light_energy = 0.0
@@ -135,7 +151,7 @@ func _run_local_movement(delta: float) -> void:
 		_restore_view(delta)
 		return
 
-	if Input.is_action_just_pressed("jump"):
+	if Input.is_action_pressed("jump"):
 		jump_buffer_timer = jump_buffer_window
 	else:
 		jump_buffer_timer = max(0.0, jump_buffer_timer - delta)
@@ -148,12 +164,16 @@ func _run_local_movement(delta: float) -> void:
 
 	if not on_floor:
 		velocity.y -= 20.0 * delta
+	_tick_stamina(delta)
 	var jumped_this_frame := false
-	if jump_buffer_timer > 0.0 and coyote_timer > 0.0:
+	if jump_buffer_timer > 0.0 and coyote_timer > 0.0 and stamina >= stamina_min_to_jump:
 		velocity.y = jump_velocity
 		if was_on_floor:
 			velocity.x *= bunnyhop_speed_boost
 			velocity.z *= bunnyhop_speed_boost
+		stamina = maxf(0.0, stamina - stamina_per_jump)
+		stamina_regen_timer = stamina_regen_delay
+		stamina_changed.emit(stamina, stamina_max)
 		jump_buffer_timer = 0.0
 		coyote_timer = 0.0
 		jumped_this_frame = true
@@ -177,12 +197,14 @@ func _run_local_movement(delta: float) -> void:
 		var horiz_velocity := Vector3(velocity.x, 0.0, velocity.z)
 		if on_floor and not jumped_this_frame:
 			horiz_velocity = horiz_velocity.move_toward(Vector3.ZERO, ground_friction * delta)
+		var use_air_branch: bool = not on_floor or jumped_this_frame
 		if direction.length() > 0.0:
-			if on_floor:
+			if not use_air_branch:
 				horiz_velocity = horiz_velocity.move_toward(direction * target_speed, sprint_acceleration * delta)
 			else:
 				var projected: float = horiz_velocity.dot(direction)
-				var add_speed: float = minf(target_speed - projected, air_acceleration * delta)
+				var wishspeed: float = air_strafe_wishspeed
+				var add_speed: float = minf(wishspeed - projected, air_acceleration * delta)
 				if add_speed > 0.0:
 					horiz_velocity += direction * add_speed
 				var horiz_speed: float = horiz_velocity.length()
@@ -199,6 +221,17 @@ func _run_local_movement(delta: float) -> void:
 		_process_slide_collisions()
 	_update_view_juice(delta)
 	was_on_floor = is_on_floor()
+
+func _tick_stamina(delta: float) -> void:
+	if stamina_regen_timer > 0.0:
+		stamina_regen_timer = max(0.0, stamina_regen_timer - delta)
+		return
+	if stamina >= stamina_max:
+		return
+	var prev := stamina
+	stamina = minf(stamina_max, stamina + stamina_regen * delta)
+	if not is_equal_approx(prev, stamina):
+		stamina_changed.emit(stamina, stamina_max)
 
 func _apply_remote_movement(delta: float) -> void:
 	global_position = global_position.lerp(remote_position, min(12.0 * delta, 1.0))
@@ -230,7 +263,7 @@ func _shoot(charge_level: float) -> void:
 		return
 	var projectile := projectile_scene.instantiate()
 	get_tree().current_scene.add_child(projectile)
-	projectile.configure(shot_color, shot_effect, charge_level)
+	projectile.configure(shot_color, shot_effect, charge_level, damage_bonus)
 	projectile.launch(muzzle_flash.global_position, -camera.global_transform.basis.z.normalized())
 
 func _try_melee_attack() -> void:
@@ -341,6 +374,44 @@ func _play_melee_feedback() -> void:
 	recoil_tween = create_tween()
 	recoil_tween.tween_property(gun, "rotation_degrees:z", -14.0, 0.06)
 	recoil_tween.tween_property(gun, "rotation_degrees:z", 0.0, 0.12)
+
+func apply_pickup(drop_type: StringName) -> void:
+	if dead:
+		return
+	match drop_type:
+		&"heal":
+			health = min(max_health, health + pickup_heal_amount)
+			health_changed.emit(health, max_health)
+		&"max_health":
+			max_health += pickup_max_health_step
+			health = min(max_health, health + pickup_max_health_step)
+			health_changed.emit(health, max_health)
+		&"speed":
+			move_speed += pickup_speed_step
+			air_speed_cap += pickup_speed_step * sprint_multiplier
+			air_strafe_wishspeed += pickup_speed_step * sprint_multiplier
+		&"damage":
+			damage_bonus += pickup_damage_step
+	_play_pickup_feedback(drop_type)
+
+func _play_pickup_feedback(drop_type: StringName) -> void:
+	var color: Color
+	match drop_type:
+		&"heal": color = Color(0.95, 0.45, 0.55)
+		&"max_health": color = Color(1.0, 0.78, 0.35)
+		&"speed": color = Color(0.4, 0.9, 1.0)
+		&"damage": color = Color(0.85, 0.5, 1.0)
+		_: color = Color.WHITE
+	if camera_kick_tween:
+		camera_kick_tween.kill()
+	var orig_x := camera.rotation.x
+	camera_kick_tween = create_tween()
+	camera_kick_tween.tween_property(camera, "rotation:x", orig_x - 0.05, 0.06)
+	camera_kick_tween.tween_property(camera, "rotation:x", orig_x, 0.18)
+	muzzle_light.light_color = color
+	muzzle_light.light_energy = 4.5
+	var pulse := create_tween()
+	pulse.tween_property(muzzle_light, "light_energy", 0.0, 0.35)
 
 func take_damage(amount: int) -> void:
 	if dead:

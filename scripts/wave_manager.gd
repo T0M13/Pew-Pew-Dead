@@ -3,9 +3,15 @@ extends Node
 @export var zombie_scene: PackedScene
 @export var spawn_points: Array[NodePath] = []
 @export var spawn_parent_path: NodePath = NodePath("../Zombies")
-@export var waves: Array[int] = [5, 10, 15]
+@export var base_wave_size: int = 5
+@export var wave_size_growth: int = 3
 @export var spawn_interval: float = 0.7
+@export var spawn_interval_min: float = 0.22
+@export var spawn_interval_decay: float = 0.04
 @export var wave_break: float = 3.0
+@export var drop_chance_per_wave: float = 0.55
+@export var drop_chance_growth: float = 0.06
+@export var drop_chance_max: float = 0.95
 
 var current_wave: int = 0
 var alive_count: int = 0
@@ -18,6 +24,7 @@ signal wave_started(wave_index: int, total: int)
 signal zombie_killed(remaining: int)
 signal zombie_spawned(zombie)
 signal all_waves_complete
+signal drop_requested(wave_index: int)
 
 func start_waves() -> void:
 	if running:
@@ -38,23 +45,21 @@ func reset_waves() -> void:
 func _start_next_wave() -> void:
 	if not running:
 		return
-	if current_wave >= waves.size():
-		running = false
-		all_waves_complete.emit()
-		return
-	to_spawn = waves[current_wave]
+	var wave_index: int = current_wave + 1
+	to_spawn = base_wave_size + wave_size_growth * (wave_index - 1)
 	spawned_count = 0
 	alive_count = 0
-	wave_started.emit(current_wave + 1, to_spawn)
+	wave_started.emit(wave_index, to_spawn)
 	spawning = true
+	var interval: float = maxf(spawn_interval_min, spawn_interval - spawn_interval_decay * float(wave_index - 1))
 	while running and spawned_count < to_spawn:
-		_spawn_one()
-		await get_tree().create_timer(spawn_interval).timeout
+		_spawn_one(wave_index)
+		await get_tree().create_timer(interval).timeout
 	spawning = false
 	if running and alive_count <= 0:
 		_advance_wave()
 
-func _spawn_one() -> void:
+func _spawn_one(wave_index: int = 1) -> void:
 	if zombie_scene == null or spawn_points.is_empty():
 		return
 	var sp_path: NodePath = spawn_points.pick_random()
@@ -63,12 +68,38 @@ func _spawn_one() -> void:
 	if sp == null or parent == null:
 		return
 	var z = zombie_scene.instantiate()
+	z.variant = _pick_variant(wave_index)
 	parent.add_child(z)
 	z.global_position = sp.global_position
 	z.died.connect(_on_zombie_died)
+	if z.has_method("apply_wave_scaling"):
+		z.apply_wave_scaling(wave_index)
 	spawned_count += 1
 	alive_count += 1
 	zombie_spawned.emit(z)
+
+func _pick_variant(wave_index: int) -> StringName:
+	if wave_index <= 1:
+		return &"walker"
+	var roll: float = randf()
+	if wave_index == 2:
+		if roll < 0.18:
+			return &"runner"
+		return &"walker"
+	if wave_index == 3:
+		if roll < 0.28:
+			return &"runner"
+		if roll < 0.36:
+			return &"spitter"
+		return &"walker"
+	# wave 4+: progressive mix, capped
+	var spitter_chance: float = clampf(0.10 + 0.03 * float(wave_index - 4), 0.10, 0.28)
+	var runner_chance: float = clampf(0.22 + 0.03 * float(wave_index - 4), 0.22, 0.42)
+	if roll < spitter_chance:
+		return &"spitter"
+	if roll < spitter_chance + runner_chance:
+		return &"runner"
+	return &"walker"
 
 func _on_zombie_died(zombie) -> void:
 	alive_count -= 1
@@ -81,5 +112,8 @@ func _on_zombie_died(zombie) -> void:
 
 func _advance_wave() -> void:
 	current_wave += 1
+	var chance: float = minf(drop_chance_max, drop_chance_per_wave + drop_chance_growth * float(current_wave - 1))
+	if randf() < chance:
+		drop_requested.emit(current_wave)
 	await get_tree().create_timer(wave_break).timeout
 	_start_next_wave()

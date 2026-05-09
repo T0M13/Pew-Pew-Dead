@@ -4,8 +4,8 @@
 [ext_resource type="Script" path="res://scripts/zombie_hitbox.gd" id="2_hit"]
 
 [sub_resource type="CapsuleShape3D" id="zc"]
-radius = 0.4
-height = 1.5
+radius = 0.55
+height = 1.8
 
 [sub_resource type="StandardMaterial3D" id="mat_skin"]
 albedo_color = Color(0.62, 0.85, 0.55, 1)
@@ -51,13 +51,13 @@ size = Vector3(0.24, 0.24, 0.24)
 radius = 1.0
 
 [sub_resource type="BoxShape3D" id="shape_head_hit"]
-size = Vector3(0.62, 0.62, 0.62)
+size = Vector3(0.78, 0.78, 0.78)
 
 [sub_resource type="BoxShape3D" id="shape_arm_hit"]
-size = Vector3(0.24, 0.78, 0.24)
+size = Vector3(0.4, 0.92, 0.4)
 
 [sub_resource type="BoxShape3D" id="shape_leg_hit"]
-size = Vector3(0.28, 0.78, 0.28)
+size = Vector3(0.42, 0.92, 0.42)
 
 [node name="Zombie" type="CharacterBody3D" groups=["zombies"]]
 collision_layer = 4
