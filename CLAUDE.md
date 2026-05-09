@@ -1,6 +1,6 @@
 # Pew Pew Dead — agent handover notes
 
-A cute low-poly Godot 4 FPS where you survive 3 waves of zombies. Built end-to-end by Claude as an experiment: AI authors the game, human only tests.
+A cute low-poly Godot 4 FPS that grew into an endless wave roguelike. Built end-to-end by Claude as an experiment: AI authors the game, human tests.
 
 This file exists so the **next agent** (or human) walking in cold can be productive immediately. Read it before doing anything.
 
@@ -10,17 +10,62 @@ This file exists so the **next agent** (or human) walking in cold can be product
 
 | Path | Purpose |
 | --- | --- |
-| `project.godot` | Godot 4.6 config: input map (WASD/mouse/shoot/jump/Esc), 4 collision layers (World/Player/Enemy/Hitbox), pastel clear color, MSAA 2x. |
-| `scenes/main.tscn` + `scripts/main.gd` | Arena scene (root). Wires player ↔ HUD ↔ wave-manager signals. Reloads on win/lose. |
-| `scenes/player.tscn` + `scripts/player.gd` | `CharacterBody3D` FPS controller. Mouse-look, raycast shoot, muzzle flash + recoil tween. Player on collision layer 2. |
-| `scenes/zombie.tscn` + `scripts/zombie.gd` | `CharacterBody3D` enemy. Chases player via `look_at`, walk-bob, hit flinch, 2-hit death squash tween. Layer 3, mask `World+Player`. |
-| `scripts/wave_manager.gd` | Spawns 5 / 10 / 15 zombies across 3 waves. 0.7 s spawn interval, 3 s wave break. |
-| `scenes/hud.tscn` + `scripts/hud.gd` | `CanvasLayer` HUD: HP / Wave / Kills labels, crosshair, animated center messages, win/lose end states. |
+| `project.godot` | Godot 4.6 config: input map (WASD/mouse/shoot/sprint/jump/slide/melee/console/Esc), 4 collision layers (World/Player/Enemy/Hitbox), pastel clear color, MSAA 2x. |
+| `scenes/main.tscn` + `scripts/main.gd` | Arena scene (root). Wires player ↔ HUD ↔ wave-manager signals. Owns drop spawning, card-phase orchestration, MP RPCs. |
+| `scenes/player.tscn` + `scripts/player.gd` | `CharacterBody3D` FPS controller. Mouse-look, slide, sprint, stamina-gated bhop with Quake-style air strafe, three weapons (pistol charge / rifle auto / shotgun spread), card-driven stat hooks. Player on collision layer 2. |
+| `scenes/projectile.tscn` + `scripts/projectile.gd` | Charge-shot orb with pierce, bounce, ribbon trail, element rotation (solar/frost/venom/knockback). Used by all three weapons via `_spawn_projectile`. |
+| `scenes/projectile_impact.tscn` + `scripts/projectile_impact.gd` | Hit burst + scorch effect spawned where a projectile resolves. |
+| `scenes/zombie.tscn` + `scripts/zombie.gd` | Enemy actor. Variant-driven (`walker`/`runner`/`spitter`/`brute`/`exploder`/`boss`), per-zone hit boxes, attack windup state machine, gib system, status effects (slow/poison), spit attack for spitters, AoE death for exploders. Layer 3, mask `World+Player`. |
+| `scenes/zombie_spit.tscn` + `scripts/zombie_spit.gd` | Spitter ranged projectile (Area3D, damages on player overlap). |
+| `scenes/drop.tscn` + `scripts/drop.gd` | Bobbing pickup crystal. Types: `heal`, `max_health`, `speed`, `damage`. Server picks position; pickup goes through `player.apply_pickup`. |
+| `scripts/wave_manager.gd` | Endless waves: `base_wave_size + wave_size_growth*(n-1)`. Picks variant per spawn with progressive odds. Bosses every 5th wave. Emits `card_phase_requested` between waves and awaits `card_phase_done`. |
+| `scripts/card_library.gd` | Single source of truth for cards. CARDS array + match arms in `apply()`. Adding a card = one dict + one match arm, no other code changes. |
+| `scripts/card_picker.gd` (in `hud.tscn`) | Full-screen overlay with 3 choice buttons (1/2/3 hotkeys). 0.4s input grace prevents accidental picks. |
+| `scripts/blood_spray.gd` | Particle blood droplets spawned from `zombie.take_hit`. Imported from Mert's PR #10. |
+| `scenes/muzzle_smoke.tscn` + `scripts/muzzle_smoke.gd` | Tween-driven puff + charge rings spawned by `_spawn_muzzle_smoke`. Imported from Mert's PR #10. |
+| `scenes/hud.tscn` + `scripts/hud.gd` | `CanvasLayer` HUD: HP / Wave / Kills / STAM / WPN labels, crosshair, center messages, perf panel, debug console, menu, embedded `CardPicker`. |
 | `assets/tree.glb` (+ `.import`) | Low-poly stacked-cone tree, modeled live in Blender via MCP. 6 instances scattered around the arena. |
 | `assets/source/tree.blend` | Source `.blend` for re-export. Open in Blender, model, re-run the export call from the Blender MCP. |
 | `validate.gd`, `smoke.gd` | Headless test scripts. Run via `godot --script <name>`. **Always run smoke.gd before pushing.** |
 
 Pastel palette intentionally hardcoded in `main.tscn` sub-resources (mint floor, lavender walls, peach obstacles, sky gradient). No theme file yet — change the `Color(...)` literals if you want to adjust.
+
+---
+
+## 1a. Major systems at a glance
+
+These are the load-bearing systems an agent will touch most often. Existing tuning values are intentional — see §4b before retuning.
+
+### Weapons (player.gd)
+Three slots, hotkeys `1`/`2`/`3`:
+- **Pistol** — hold to charge, release to fire. Charge ramps damage, pierce, bounce, projectile size.
+- **Rifle** — hold to full-auto. `weapon_rifle_rpm`, low per-shot damage, light spread.
+- **Shotgun** — click for 5-pellet spread, per-shot cooldown.
+All three route through `_spawn_projectile(direction, charge, damage_mult)` so card stat bonuses (`damage_bonus`, `projectile_speed_bonus`, `projectile_pierce_bonus`, `projectile_bounce_bonus`) apply to every weapon automatically.
+
+### Cards (card_library.gd + card_picker.gd)
+Server picks 3 random cards per player at end of every wave, presents via `present_cards` RPC, collects via `submit_card_pick`, applies via `apply_card_remote`. Wave manager halts on `card_phase_requested` / `await card_phase_done`. To add a card: append to `CARDS` and add a match arm in `apply()`. Don't add new player fields without updating the apply-time mutations.
+
+### Enemy variants (zombie.gd)
+`@export var variant: StringName` switches stats and tint at `_ready` via `_apply_variant_config`. Wave manager's `_pick_variant` chooses which to spawn. Variants:
+- `walker` — default chaser
+- `runner` — small, fast, fragile
+- `spitter` — purple, holds range, fires `zombie_spit`
+- `brute` — large, slow, tanky, big punch
+- `exploder` — yellow, fast, low HP, AoE on death (`_trigger_exploder_blast`)
+- `boss` — red, scales 2.2x, spawned alongside regular pack on every 5th wave via `_spawn_boss`
+
+### Drops (drop.gd, server-authoritative)
+End of each wave, server rolls `drop_chance_per_wave + growth` and spawns a drop via `spawn_drop` RPC at a clear-of-obstacles position. Pickup runs `player.apply_pickup` locally on the player who touches it; server broadcasts despawn.
+
+### Stamina-gated bhop (player.gd)
+`stamina_max`/`stamina_per_jump`/`stamina_regen`/`stamina_min_to_jump` gate jumping. `air_speed_cap` is the bhop ceiling, tuned to ~sprint speed by default; the `speed` drop and several cards raise it (so chained bhops only go fast after build investment). Auto-jump on hold (`Input.is_action_pressed("jump")` re-arms the buffer).
+
+### Lifesteal (player.gd + main.gd)
+`lifesteal_per_kill` set by the Vampire card. `main._on_zombie_died_for_lifesteal` heals nearby (≤ 12 m) lifesteal-carrying players when a zombie dies; routed via `grant_lifesteal` RPC for non-host peers.
+
+### Effects (muzzle_smoke.gd / blood_spray.gd)
+`player._spawn_muzzle_smoke` fires after every projectile spawn. `zombie._spawn_blood_spray` fires inside `take_hit`, anchored at the hit zone's hitbox center.
 
 ---
 

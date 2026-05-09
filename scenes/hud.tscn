@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1_h"]
+[ext_resource type="Script" path="res://scripts/card_picker.gd" id="2_card"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_h")
@@ -49,6 +50,14 @@ theme_override_font_sizes/font_size = 24
 layout_mode = 2
 text = "STAM 100"
 theme_override_colors/font_color = Color(0.22, 0.32, 0.42, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+
+[node name="Weapon" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "WPN [1] Pistol"
+theme_override_colors/font_color = Color(0.32, 0.22, 0.32, 1)
 theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 20
@@ -222,6 +231,60 @@ text = "Join"
 layout_mode = 2
 text = "Choose Solo, Host, or Join to start."
 autowrap_mode = 3
+horizontal_alignment = 1
+
+[node name="CardPicker" type="Control" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("2_card")
+
+[node name="Dim" type="ColorRect" parent="CardPicker"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.05, 0.1, 0.65)
+
+[node name="Center" type="CenterContainer" parent="CardPicker"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="CardPicker/Center"]
+theme_override_constants/separation = 18
+
+[node name="Heading" type="Label" parent="CardPicker/Center/VBox"]
+text = "WAVE CLEARED"
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.04, 0.08, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 56
+horizontal_alignment = 1
+
+[node name="Subheading" type="Label" parent="CardPicker/Center/VBox"]
+text = "Pick one card."
+theme_override_colors/font_color = Color(0.92, 0.92, 0.95, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+
+[node name="Cards" type="HBoxContainer" parent="CardPicker/Center/VBox"]
+theme_override_constants/separation = 22
+alignment = 1
+
+[node name="Status" type="Label" parent="CardPicker/Center/VBox"]
+text = ""
+theme_override_colors/font_color = Color(0.95, 0.92, 1, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
 horizontal_alignment = 1
 
 [connection signal="text_submitted" from="ConsolePanel/Margin/VBox/Command" to="." method="_on_command_text_submitted"]
