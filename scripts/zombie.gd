@@ -72,6 +72,18 @@ func apply_wave_scaling(wave_index: int) -> void:
 			max_health = 2 + tier
 			move_speed = 1.9 * multiplier
 			crawl_speed = 1.0 * multiplier
+		&"brute":
+			max_health = 8 + tier * 2
+			move_speed = 1.7 * multiplier
+			crawl_speed = 0.9 * multiplier
+		&"exploder":
+			max_health = 1 + tier / 2
+			move_speed = 4.2 * multiplier
+			crawl_speed = 2.2 * multiplier
+		&"boss":
+			max_health = 30 + tier * 8
+			move_speed = 2.0 * multiplier
+			crawl_speed = 1.1 * multiplier
 		_:
 			max_health = 2 + tier
 			move_speed = 2.6 * multiplier
@@ -114,6 +126,30 @@ func _apply_variant_config() -> void:
 			attack_windup = 0.55
 			mesh_root.scale = Vector3(1.05, 1.05, 1.05)
 			_tint_meshes(Color(0.78, 0.55, 1.0), Color(0.45, 0.3, 0.62))
+		&"brute":
+			move_speed = 1.7
+			max_health = 8
+			damage = 24
+			attack_cooldown = 1.2
+			attack_windup = 0.7
+			mesh_root.scale = Vector3(1.55, 1.55, 1.55)
+			_tint_meshes(Color(0.45, 0.55, 0.4), Color(0.25, 0.32, 0.22))
+		&"exploder":
+			move_speed = 4.2
+			max_health = 1
+			damage = 0
+			attack_cooldown = 0.8
+			attack_windup = 0.25
+			mesh_root.scale = Vector3(0.9, 0.9, 0.9)
+			_tint_meshes(Color(1.0, 0.7, 0.25), Color(0.65, 0.4, 0.1))
+		&"boss":
+			move_speed = 2.0
+			max_health = 30
+			damage = 30
+			attack_cooldown = 1.4
+			attack_windup = 0.85
+			mesh_root.scale = Vector3(2.2, 2.2, 2.2)
+			_tint_meshes(Color(0.85, 0.2, 0.32), Color(0.45, 0.1, 0.18))
 		_:
 			pass
 
@@ -498,6 +534,8 @@ func _die() -> void:
 	_disable_all_hitboxes()
 	died.emit(self)
 	_flash_hit_light(3.8, Color(1.0, 0.8, 0.45), 0.34)
+	if variant == &"exploder":
+		_trigger_exploder_blast()
 	_explode_into_gibs()
 	var t := create_tween()
 	t.set_parallel(true)
@@ -505,6 +543,22 @@ func _die() -> void:
 	t.tween_property(mesh_root, "rotation", mesh_root.rotation + Vector3(0, PI, 0), 0.45)
 	await t.finished
 	queue_free()
+
+func _trigger_exploder_blast() -> void:
+	var blast_radius: float = 4.0
+	var blast_damage: int = 25
+	hit_light.light_color = Color(1.0, 0.55, 0.18)
+	hit_light.light_energy = 8.5
+	for player in get_tree().get_nodes_in_group("player"):
+		if not is_instance_valid(player) or player.dead:
+			continue
+		var dist: float = player.global_position.distance_to(global_position)
+		if dist > blast_radius:
+			continue
+		var falloff: float = 1.0 - clampf(dist / blast_radius, 0.0, 1.0)
+		var dmg: int = maxi(1, int(round(float(blast_damage) * (0.5 + 0.5 * falloff))))
+		if player.has_method("take_damage"):
+			player.take_damage(dmg)
 
 func _explode_into_gibs() -> void:
 	var dir := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4))

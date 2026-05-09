@@ -6,18 +6,27 @@ extends Control
 @onready var card_row: HBoxContainer = $Center/VBox/Cards
 @onready var status: Label = $Center/VBox/Status
 
+const INPUT_GRACE: float = 0.4
+
 var current_offer: Array = []
 var picked: bool = false
+var grace_timer: float = 0.0
 
 signal card_picked(card_id: StringName)
 
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	set_process(false)
+
+func _process(delta: float) -> void:
+	if grace_timer > 0.0:
+		grace_timer = max(0.0, grace_timer - delta)
 
 func show_offer(card_ids: Array, wave_index: int) -> void:
 	current_offer = card_ids.duplicate()
 	picked = false
+	grace_timer = INPUT_GRACE
 	heading.text = "WAVE %d CLEARED" % wave_index
 	subheading.text = "Pick one card. Press 1 / 2 / 3 or click."
 	status.text = ""
@@ -29,6 +38,7 @@ func show_offer(card_ids: Array, wave_index: int) -> void:
 		var card_node := _build_card_panel(card_data, i)
 		card_row.add_child(card_node)
 	visible = true
+	set_process(true)
 
 func show_waiting(message: String) -> void:
 	subheading.text = ""
@@ -40,6 +50,8 @@ func show_waiting(message: String) -> void:
 func hide_picker() -> void:
 	visible = false
 	current_offer.clear()
+	grace_timer = 0.0
+	set_process(false)
 	_clear_cards()
 
 func _clear_cards() -> void:
@@ -103,6 +115,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _pick_index(index: int) -> void:
 	if picked or index < 0 or index >= current_offer.size():
+		return
+	if grace_timer > 0.0:
 		return
 	picked = true
 	for child in card_row.get_children():

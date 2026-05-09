@@ -4,6 +4,7 @@ extends CanvasLayer
 @onready var wave_label: Label = $Margin/VBox/Wave
 @onready var kills_label: Label = $Margin/VBox/Kills
 @onready var stamina_label: Label = $Margin/VBox/Stamina
+@onready var weapon_label: Label = $Margin/VBox/Weapon
 @onready var card_picker: Control = $CardPicker
 @onready var center_label: Label = $CenterMessage
 @onready var menu_panel: PanelContainer = $MenuPanel
@@ -72,6 +73,9 @@ func set_health(value: int, max_value: int) -> void:
 
 func set_stamina(value: float, max_value: float) -> void:
 	stamina_label.text = "STAM %d / %d" % [int(round(value)), int(round(max_value))]
+
+func set_weapon(index: int, weapon_name: String) -> void:
+	weapon_label.text = "WPN [%d] %s" % [index + 1, weapon_name]
 
 func set_wave(wave: int, total: int) -> void:
 	wave_label.text = "Wave %d  (%d zombies)" % [wave, total]

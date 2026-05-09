@@ -174,9 +174,11 @@ func _spawn_player_for_peer(peer_id: int) -> void:
 	if peer_id == _local_peer_id():
 		player.health_changed.connect(hud.set_health)
 		player.stamina_changed.connect(hud.set_stamina)
+		player.weapon_changed.connect(hud.set_weapon)
 		player.died.connect(_on_local_player_died)
 		hud.set_health(player.max_health, player.max_health)
 		hud.set_stamina(player.stamina_max, player.stamina_max)
+		hud.set_weapon(player.current_weapon, player.WEAPON_NAMES[player.current_weapon])
 
 @rpc("authority", "call_local", "reliable")
 func spawn_player(peer_id: int, spawn_index: int) -> void:
@@ -276,6 +278,9 @@ func _on_wave_started(wave_index: int, total: int) -> void:
 	current_wave_number = wave_index
 	current_wave_total = total
 	hud.set_wave(wave_index, total)
+	if wave_index >= 5 and wave_index % 5 == 0:
+		hud.flash_message("BOSS INCOMING", 2.4)
+		hud.add_console_line("Boss wave %d." % wave_index)
 	if _is_server_authority() and multiplayer.has_multiplayer_peer():
 		sync_wave.rpc(wave_index, total)
 
@@ -373,6 +378,9 @@ func _on_card_phase_requested(wave_index: int) -> void:
 	card_phase_wave = wave_index
 	pending_card_offers.clear()
 	pending_card_picks.clear()
+	await get_tree().create_timer(0.9).timeout
+	if not card_phase_active:
+		return
 	for peer_id in player_nodes.keys():
 		var offer: Array = CardLibrary.random_offer(3)
 		pending_card_offers[peer_id] = offer

@@ -53,6 +53,9 @@ func _start_next_wave() -> void:
 	alive_count = 0
 	wave_started.emit(wave_index, to_spawn)
 	spawning = true
+	var boss_wave: bool = wave_index >= 5 and wave_index % 5 == 0
+	if boss_wave:
+		_spawn_boss(wave_index)
 	var interval: float = maxf(spawn_interval_min, spawn_interval - spawn_interval_decay * float(wave_index - 1))
 	while running and spawned_count < to_spawn:
 		_spawn_one(wave_index)
@@ -95,13 +98,41 @@ func _pick_variant(wave_index: int) -> StringName:
 			return &"spitter"
 		return &"walker"
 	# wave 4+: progressive mix, capped
-	var spitter_chance: float = clampf(0.10 + 0.03 * float(wave_index - 4), 0.10, 0.28)
-	var runner_chance: float = clampf(0.22 + 0.03 * float(wave_index - 4), 0.22, 0.42)
-	if roll < spitter_chance:
+	var brute_chance: float = clampf(0.04 + 0.025 * float(wave_index - 4), 0.0, 0.18)
+	var exploder_chance: float = clampf(0.05 + 0.025 * float(wave_index - 4), 0.0, 0.20)
+	var spitter_chance: float = clampf(0.10 + 0.03 * float(wave_index - 4), 0.10, 0.26)
+	var runner_chance: float = clampf(0.22 + 0.03 * float(wave_index - 4), 0.22, 0.40)
+	var c1: float = brute_chance
+	var c2: float = c1 + exploder_chance
+	var c3: float = c2 + spitter_chance
+	var c4: float = c3 + runner_chance
+	if roll < c1:
+		return &"brute"
+	if roll < c2:
+		return &"exploder"
+	if roll < c3:
 		return &"spitter"
-	if roll < spitter_chance + runner_chance:
+	if roll < c4:
 		return &"runner"
 	return &"walker"
+
+func _spawn_boss(wave_index: int) -> void:
+	if zombie_scene == null or spawn_points.is_empty():
+		return
+	var sp_path: NodePath = spawn_points.pick_random()
+	var sp := get_node_or_null(sp_path)
+	var parent := get_node_or_null(spawn_parent_path)
+	if sp == null or parent == null:
+		return
+	var z = zombie_scene.instantiate()
+	z.variant = &"boss"
+	parent.add_child(z)
+	z.global_position = sp.global_position
+	z.died.connect(_on_zombie_died)
+	if z.has_method("apply_wave_scaling"):
+		z.apply_wave_scaling(wave_index)
+	alive_count += 1
+	zombie_spawned.emit(z)
 
 func _on_zombie_died(zombie) -> void:
 	alive_count -= 1

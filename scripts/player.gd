@@ -28,6 +28,13 @@ extends CharacterBody3D
 @export var stamina_min_to_jump: float = 14.0
 @export var projectile_scene: PackedScene
 @export var max_charge_time: float = 0.9
+@export var weapon_rifle_rpm: float = 7.5
+@export var weapon_rifle_damage_mult: float = 0.55
+@export var weapon_rifle_spread_deg: float = 1.6
+@export var weapon_shotgun_pellets: int = 5
+@export var weapon_shotgun_spread_deg: float = 7.0
+@export var weapon_shotgun_damage_mult: float = 0.6
+@export var weapon_shotgun_cooldown: float = 0.55
 @export var muzzle_smoke_scene: PackedScene = preload("res://scenes/muzzle_smoke.tscn")
 @export var pickup_heal_amount: int = 35
 @export var pickup_max_health_step: int = 20
@@ -36,7 +43,17 @@ extends CharacterBody3D
 
 var damage_bonus: int = 0
 var projectile_speed_bonus: float = 0.0
+var projectile_pierce_bonus: int = 0
+var projectile_bounce_bonus: int = 0
 var lifesteal_per_kill: int = 0
+var current_weapon: int = 0
+var auto_firing: bool = false
+var auto_fire_timer: float = 0.0
+var shotgun_cooldown_timer: float = 0.0
+
+const WEAPON_NAMES: Array[String] = ["Pistol", "Rifle", "Shotgun"]
+
+signal weapon_changed(index: int, weapon_name: String)
 
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var head: Node3D = $Head
@@ -127,19 +144,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		if not mouse_captured:
 			_capture_mouse()
 		else:
-			_start_charging_shot()
-	elif event.is_action_released("shoot") and charging_shot:
-		_shoot(charge_time / max_charge_time)
+			_begin_fire()
+	elif event.is_action_released("shoot"):
+		_end_fire()
 	elif event.is_action_pressed("ui_unpause"):
 		_release_mouse()
+	elif event is InputEventKey and event.pressed and not event.echo:
+		match event.keycode:
+			KEY_1: _switch_weapon(0)
+			KEY_2: _switch_weapon(1)
+			KEY_3: _switch_weapon(2)
 
 func _physics_process(delta: float) -> void:
 	melee_timer = max(0.0, melee_timer - delta)
+	shotgun_cooldown_timer = max(0.0, shotgun_cooldown_timer - delta)
 	if dead:
 		return
 	if _is_locally_controlled():
 		if charging_shot:
 			_update_charge(delta)
+		if auto_firing and not input_blocked:
+			_tick_auto_fire(delta)
 		_run_local_movement(delta)
 		if multiplayer.has_multiplayer_peer():
 			sync_player_state.rpc(global_position, head.rotation.y, camera.rotation.x, velocity)
@@ -257,20 +282,93 @@ func _shoot(charge_level: float) -> void:
 	charging_shot = false
 	charge_level = clamp(charge_level, 0.0, 1.0)
 	var element = PROJECTILE_ELEMENTS[projectile_index % PROJECTILE_ELEMENTS.size()]
-	projectile_index += 1
 	var shot_color: Color = element.color
-	var shot_effect: StringName = element.name
 	_play_shot_feedback(shot_color, charge_level)
 	if projectile_scene == null:
 		push_warning("Player cannot shoot because no projectile scene is assigned.")
 		return
+	var fwd: Vector3 = -camera.global_transform.basis.z.normalized()
+	_spawn_projectile(fwd, charge_level, 1.0)
+	_spawn_muzzle_smoke(charge_level)
+
+func _spawn_projectile(direction: Vector3, charge_level: float, damage_mult: float) -> Node:
+	if projectile_scene == null:
+		return null
+	var element = PROJECTILE_ELEMENTS[projectile_index % PROJECTILE_ELEMENTS.size()]
+	projectile_index += 1
 	var projectile := projectile_scene.instantiate()
 	get_tree().current_scene.add_child(projectile)
-	projectile.configure(shot_color, shot_effect, charge_level, damage_bonus)
+	projectile.configure(element.color, element.name, charge_level, damage_bonus)
+	if damage_mult != 1.0 and "damage" in projectile:
+		projectile.damage = maxi(1, int(round(float(projectile.damage) * damage_mult)))
 	if projectile_speed_bonus > 0.0 and "speed" in projectile:
 		projectile.speed *= 1.0 + projectile_speed_bonus
-	projectile.launch(muzzle_flash.global_position, -camera.global_transform.basis.z.normalized())
-	_spawn_muzzle_smoke(charge_level)
+	if "pierces_remaining" in projectile:
+		projectile.pierces_remaining += projectile_pierce_bonus
+	if "bounces_remaining" in projectile:
+		projectile.bounces_remaining += projectile_bounce_bonus
+	projectile.launch(muzzle_flash.global_position, direction)
+	return projectile
+
+func _begin_fire() -> void:
+	match current_weapon:
+		0:
+			_start_charging_shot()
+		1:
+			auto_firing = true
+			auto_fire_timer = 0.0
+		2:
+			_fire_shotgun()
+
+func _end_fire() -> void:
+	if charging_shot and current_weapon == 0:
+		_shoot(charge_time / max_charge_time)
+	if auto_firing:
+		auto_firing = false
+
+func _tick_auto_fire(delta: float) -> void:
+	auto_fire_timer = max(0.0, auto_fire_timer - delta)
+	if auto_fire_timer > 0.0:
+		return
+	auto_fire_timer = 1.0 / max(0.1, weapon_rifle_rpm)
+	_fire_rifle_round()
+
+func _fire_rifle_round() -> void:
+	var element = PROJECTILE_ELEMENTS[projectile_index % PROJECTILE_ELEMENTS.size()]
+	_play_shot_feedback(element.color, 0.18)
+	var basis := camera.global_transform.basis
+	var dir: Vector3 = -basis.z.normalized()
+	var spread_rad := deg_to_rad(weapon_rifle_spread_deg)
+	dir = dir.rotated(Vector3.UP, randf_range(-spread_rad, spread_rad))
+	dir = dir.rotated(basis.x, randf_range(-spread_rad, spread_rad))
+	_spawn_projectile(dir.normalized(), 0.18, weapon_rifle_damage_mult)
+	_spawn_muzzle_smoke(0.18)
+
+func _fire_shotgun() -> void:
+	if shotgun_cooldown_timer > 0.0:
+		return
+	shotgun_cooldown_timer = weapon_shotgun_cooldown
+	var element = PROJECTILE_ELEMENTS[projectile_index % PROJECTILE_ELEMENTS.size()]
+	_play_shot_feedback(element.color, 0.5)
+	var basis := camera.global_transform.basis
+	var spread_rad := deg_to_rad(weapon_shotgun_spread_deg)
+	for i in weapon_shotgun_pellets:
+		var dir: Vector3 = -basis.z.normalized()
+		dir = dir.rotated(Vector3.UP, randf_range(-spread_rad, spread_rad))
+		dir = dir.rotated(basis.x, randf_range(-spread_rad, spread_rad))
+		_spawn_projectile(dir.normalized(), 0.3, weapon_shotgun_damage_mult)
+	_spawn_muzzle_smoke(0.55)
+
+func _switch_weapon(index: int) -> void:
+	if index < 0 or index >= WEAPON_NAMES.size():
+		return
+	if index == current_weapon:
+		return
+	if charging_shot:
+		_shoot(charge_time / max_charge_time)
+	auto_firing = false
+	current_weapon = index
+	weapon_changed.emit(index, WEAPON_NAMES[index])
 
 func _spawn_muzzle_smoke(charge_level: float) -> void:
 	if muzzle_smoke_scene == null:
