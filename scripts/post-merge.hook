@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Installed to .git/hooks/post-merge by scripts/install-hooks.sh
+# Runs automatically after every git pull / git merge.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+if [[ -f ".godot-path" ]]; then
+  GODOT="$(cat .godot-path | tr -d '[:space:]')"
+fi
+GODOT="${GODOT:-godot}"
+
+echo ""
+echo "==> post-merge: refreshing Godot import cache..."
+if "$GODOT" --headless --path . --import --quit >/dev/null 2>&1; then
+  echo "==> Import cache refreshed."
+else
+  echo "==> (Skipped: Godot not found. Create a .godot-path file — see CLAUDE.md §3.)"
+fi
+
+echo ""
+echo "==> If the Godot editor is open: Project → Reload Current Project"
+echo ""

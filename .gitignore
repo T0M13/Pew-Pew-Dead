@@ -12,6 +12,9 @@ export_presets.cfg
 data_*/
 mono_crash.*.json
 
+# Local machine config (path to Godot binary — differs per machine)
+.godot-path
+
 # System
 *.tmp
 *.log

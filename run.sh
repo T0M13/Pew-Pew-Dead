@@ -2,6 +2,12 @@
 set -e
 cd "$(dirname "$0")"
 
+# Resolve Godot binary: .godot-path file > GODOT env var > 'godot' on PATH
+if [[ -f ".godot-path" ]]; then
+  GODOT="$(cat .godot-path | tr -d '[:space:]')"
+fi
+GODOT="${GODOT:-godot}"
+
 DEBUG=1
 ARGS=()
 for arg in "$@"; do
@@ -13,12 +19,12 @@ for arg in "$@"; do
 done
 
 ensure_imported() {
-  godot --headless --path . --import --quit >/dev/null
+  "$GODOT" --headless --path . --import --quit >/dev/null
 }
 
 if [[ $DEBUG -eq 0 ]]; then
   ensure_imported
-  exec godot "${ARGS[@]}"
+  exec "$GODOT" "${ARGS[@]}"
 fi
 
 ENGINE_LOG_DIR="debug/engine_logs"
@@ -41,7 +47,7 @@ export GAME_LOG_DIR="$(pwd)/$GAME_LOG_DIR_REL"
 export GAME_LOG_TS="$TS"
 
 ensure_imported
-godot "${ARGS[@]}" 2>&1 | tee "$ENGINE_LOG"
+"$GODOT" "${ARGS[@]}" 2>&1 | tee "$ENGINE_LOG"
 EXIT=${PIPESTATUS[0]}
 
 rotate "$ENGINE_LOG_DIR"
