@@ -97,17 +97,30 @@ Branch prefixes used so far: `fix/...` for bug fixes. Add `feat/...`, `chore/...
 
 ## 3. Validating changes (the rituals)
 
-These run headlessly from PowerShell on Windows. The Godot binary lives in Steam:
+**One-time setup per machine** — create a gitignored `.godot-path` file in the project root containing just the path to your Godot binary (no quotes, no trailing newline):
 ```
-C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe
+echo 'C:\path\to\your\Godot.exe' > .godot-path
+```
+All scripts (`run.sh`, `scripts/post-merge.hook`) read this file automatically. No paths are hardcoded anywhere in the repo.
+
+Also install the git hooks once:
+```bash
+bash scripts/install-hooks.sh
 ```
 
-**Always quote the project path** when calling Godot from `Start-Process` — the path contains spaces and Start-Process splits on whitespace otherwise. Pattern:
+**To launch the game with logging** (output → `debug/engine_logs/`), run from Git Bash:
+```bash
+bash run.sh
+```
+`run.sh` resolves Godot from: `.godot-path` file → `GODOT` env var → `godot` on `$PATH`.
+
+**Headless tests** — run from PowerShell:
 ```powershell
-$godot = "C:\Program Files (x86)\Steam\steamapps\common\Godot Engine\godot.windows.opt.tools.64.exe"
-$projectPath = '"C:\Users\Tomi\Documents\Projects\Pew Pew Dead"'   # note the doubled quoting
-Start-Process $godot -ArgumentList @("--headless","--path",$projectPath,"--script","smoke.gd") `
+$godot = Get-Content .godot-path
+$proj   = $PSScriptRoot   # or the project root path
+Start-Process $godot -ArgumentList @("--headless","--path",$proj,"--script","smoke.gd") `
   -RedirectStandardOutput "$env:TEMP\out.txt" -RedirectStandardError "$env:TEMP\err.txt" -PassThru -Wait
+Get-Content "$env:TEMP\out.txt"; Get-Content "$env:TEMP\err.txt"
 ```
 
 Two test scripts:
@@ -115,12 +128,14 @@ Two test scripts:
 - **`smoke.gd`** — instantiates `main.tscn` and runs 120 frames. Catches `_ready` crashes, signal-wiring bugs, anything that explodes during early simulation. Run this before opening a PR.
 
 After modifying or adding a `.glb` / image / audio asset, also run:
-```
-godot --headless --path . --import
+```bash
+bash run.sh --no-debug --quit   # or just open the editor which auto-imports
 ```
 This pre-bakes `.godot/imported/<file>.scn` so headless tests and editor opens don't see "missing resource" errors.
 
-The benign `WARNING: ObjectDB instances leaked at exit` in stderr is normal — happens because test scripts call `quit()` without freeing nodes. Ignore it.
+**Known headless quirk**: `CardLibrary` (`class_name` script) shows parse errors in stderr under `--script`/`--headless` because class registrations aren't populated before the test script runs. Game uses cached bytecode and runs fine — ignore those errors. The `ObjectDB instances leaked at exit` warning is also benign.
+
+**After pulling changes**: the `post-merge` hook auto-runs `godot --import`. If the editor is open, also do **Project → Reload Current Project** to clear stale cached state.
 
 ---
 
